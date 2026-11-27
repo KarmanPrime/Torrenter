@@ -243,15 +243,11 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
     trackLayout->addWidget(m_addPeersButton);
     m_hideButton = new QToolButton(m_tabTrack);
     m_hideButton->setObjectName(u"propHide"_s);
-    m_hideButton->setIcon(TorrenterIcons::icon(u"panel-bottom-close"_s, ThemeTokens::Token::Text2, mode));
+    m_hideButton->setIcon(TorrenterIcons::icon(u"chevron-down"_s, ThemeTokens::Token::Text2, mode));
     m_hideButton->setIconSize(QSize(16, 16));
     m_hideButton->setToolTip(tr("Hide details panel"));
     trackLayout->addWidget(m_hideButton);
-    connect(m_hideButton, &QToolButton::clicked, this, [this]()
-    {
-        // Clicking the active tab collapses the panel; mirror that here.
-        m_tabBar->setCurrentIndex(m_tabBar->currentIndex());
-    });
+    connect(m_hideButton, &QToolButton::clicked, this, &PropertiesWidget::togglePanelVisibility);
     m_tabTrack->setStyleSheet(
         QStringLiteral("QWidget#torrenterPropTabTrack { background: %1; border: 1px solid %2; border-radius: 9px; }"
             " QPushButton#torrenterPropTab { background: transparent; border: none; border-radius: 6px; padding: 0 11px; color: %3; }"
@@ -291,15 +287,24 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
     refreshTabStyles();
     connect(m_tabBar, &PropTabBar::tabChanged, this, [this, refreshTabStyles](int index)
     {
+        m_expandedTabIndex = index;
         refreshTabStyles();
+        updateHideButton();
         if (m_addPeersButton)
             m_addPeersButton->setVisible(index == PropTabBar::PeersTab);
     });
-    connect(m_tabBar, &PropTabBar::visibilityToggled, this, [refreshTabStyles](bool) { refreshTabStyles(); });
+    connect(m_tabBar, &PropTabBar::visibilityToggled, this, [this, refreshTabStyles](bool visible)
+    {
+        refreshTabStyles();
+        updateHideButton();
+        Q_UNUSED(visible);
+    });
     connect(m_tabBar, &PropTabBar::tabChanged, m_ui->stackedProperties, &QStackedWidget::setCurrentIndex);
     connect(m_tabBar, &PropTabBar::tabChanged, this, &PropertiesWidget::saveSettings);
     connect(m_tabBar, &PropTabBar::visibilityToggled, this, &PropertiesWidget::setVisibility);
     connect(m_tabBar, &PropTabBar::visibilityToggled, this, &PropertiesWidget::saveSettings);
+    if (auto *detailsSplitter = qobject_cast<QSplitter *>(parentWidget()))
+        connect(detailsSplitter, &QSplitter::splitterMoved, this, &PropertiesWidget::onSplitterMoved);
 
     const auto *editWebSeedsHotkey = new QShortcut(Qt::Key_F2, m_ui->listWebSeeds, nullptr, nullptr, Qt::WidgetShortcut);
     connect(editWebSeedsHotkey, &QShortcut::activated, this, &PropertiesWidget::editWebSeed);
@@ -748,7 +753,9 @@ void PropertiesWidget::animateSplitterSizes(const QList<int> &target)
     auto *splitter = static_cast<QSplitter *>(parentWidget());
     if (!splitter || (splitter->sizes().size() != target.size()))
     {
+        m_ignoreSplitterMoved = true;
         splitter->setSizes(target);
+        m_ignoreSplitterMoved = false;
         return;
     }
     m_slideStartSizes = splitter->sizes();
@@ -766,45 +773,126 @@ void PropertiesWidget::animateSplitterSizes(const QList<int> &target)
             for (int i = 0; i < m_slideStartSizes.size(); ++i)
                 sizes.append(qRound(m_slideStartSizes.at(i) + (m_slideTargetSizes.at(i) - m_slideStartSizes.at(i)) * eased));
             if (auto *splitter = static_cast<QSplitter *>(parentWidget()))
+            {
+                m_ignoreSplitterMoved = true;
                 splitter->setSizes(sizes);
+                m_ignoreSplitterMoved = false;
+            }
             if (t >= 1.0)
+            {
                 m_slideAnimTimer.stop();
+                m_animatingToCollapse = false;
+            }
         });
         m_slideAnimTimer.start();
     }
 }
 
+void PropertiesWidget::updateHideButton()
+{
+    if (!m_hideButton)
+        return;
+    const bool collapsed = (m_state == REDUCED);
+    m_hideButton->setIcon(TorrenterIcons::icon(collapsed ? u"chevron-up"_s : u"chevron-down"_s
+        , ThemeTokens::Token::Text2, ThemeTokens::currentMode()));
+    m_hideButton->setToolTip(collapsed ? tr("Show details panel") : tr("Hide details panel"));
+}
+
+void PropertiesWidget::togglePanelVisibility()
+{
+    if (m_state == REDUCED)
+    {
+        const int index = qBound(0, m_expandedTabIndex, m_tabBar->count() - 1);
+        m_tabBar->setCurrentIndex(index);
+    }
+    else
+    {
+        m_expandedTabIndex = m_tabBar->currentIndex();
+        if (m_expandedTabIndex < 0)
+            m_expandedTabIndex = 0;
+        m_tabBar->setCurrentIndex(m_expandedTabIndex);
+    }
+    updateHideButton();
+    saveSettings();
+}
+
+void PropertiesWidget::onSplitterMoved()
+{
+    if (m_ignoreSplitterMoved || m_slideAnimTimer.isActive() || m_animatingToCollapse)
+        return;
+
+    auto *hSplitter = qobject_cast<QSplitter *>(parentWidget());
+    if (!hSplitter || (hSplitter->sizes().size() != 2))
+        return;
+
+    const int tabBarHeight = m_tabTrack->height();
+    if ((m_state == REDUCED) && (hSplitter->sizes().last() > (tabBarHeight + 16)))
+    {
+        // A drag from the collapsed state is an explicit expand.
+        m_ignoreSplitterMoved = true;
+        if (m_handleWidth != -1)
+            hSplitter->setHandleWidth(m_handleWidth);
+        m_ui->stackedProperties->setVisible(true);
+        hSplitter->handle(1)->setDisabled(false);
+        hSplitter->handle(1)->setVisible(true);
+        setMaximumSize(maximumSize().width(), QWIDGETSIZE_MAX);
+        m_state = VISIBLE;
+        if (m_tabBar->currentIndex() < 0)
+            m_tabBar->setCurrentIndex(m_expandedTabIndex);
+        m_slideSizes = hSplitter->sizes();
+        m_ignoreSplitterMoved = false;
+        updateHideButton();
+        saveSettings();
+        loadDynamicData();
+        return;
+    }
+
+    if (m_state == VISIBLE)
+    {
+        m_slideSizes = hSplitter->sizes();
+        saveSettings();
+    }
+}
+
 void PropertiesWidget::setVisibility(const bool visible)
 {
+    auto *hSplitter = static_cast<QSplitter *>(parentWidget());
+    if (!hSplitter || (hSplitter->sizes().size() != 2))
+        return;
+
     if (!visible && (m_state == VISIBLE))
     {
-        const int tabBarHeight = m_tabTrack->geometry().height(); // take height before hiding
-        auto *hSplitter = static_cast<QSplitter *>(parentWidget());
+        const int tabBarHeight = m_tabTrack->height();
+        const int collapsedHandleWidth = 4;
         m_ui->stackedProperties->setVisible(false);
+        m_animatingToCollapse = true;
         m_slideSizes = hSplitter->sizes();
-        hSplitter->handle(1)->setVisible(false);
-        hSplitter->handle(1)->setDisabled(true);
-        m_handleWidth = hSplitter->handleWidth();
-        hSplitter->setHandleWidth(0);
-        const QList<int> sizes {(hSplitter->geometry().height() - tabBarHeight), tabBarHeight};
+        if (m_handleWidth == -1)
+            m_handleWidth = hSplitter->handleWidth();
+        hSplitter->handle(1)->setDisabled(false);
+        hSplitter->handle(1)->setVisible(true);
+        hSplitter->setHandleWidth(collapsedHandleWidth);
+        const QList<int> sizes {(hSplitter->height() - tabBarHeight - collapsedHandleWidth), tabBarHeight};
         animateSplitterSizes(sizes);
-        setMaximumSize(maximumSize().width(), tabBarHeight);
+        setMaximumSize(maximumSize().width(), QWIDGETSIZE_MAX);
         m_state = REDUCED;
+        updateHideButton();
         return;
     }
 
     if (visible && (m_state == REDUCED))
     {
         m_ui->stackedProperties->setVisible(true);
-        auto *hSplitter = static_cast<QSplitter *>(parentWidget());
         if (m_handleWidth != -1)
             hSplitter->setHandleWidth(m_handleWidth);
         hSplitter->handle(1)->setDisabled(false);
         hSplitter->handle(1)->setVisible(true);
+        if ((m_slideSizes.size() != 2) || (m_slideSizes.last() <= m_tabTrack->height()))
+            m_slideSizes = {qMax(120, hSplitter->height() - 260), 260};
         animateSplitterSizes(m_slideSizes);
         m_state = VISIBLE;
         setMaximumSize(maximumSize().width(), QWIDGETSIZE_MAX);
-        // Force refresh
+        updateHideButton();
         loadDynamicData();
     }
 }
@@ -961,10 +1049,15 @@ void PropertiesWidget::readSettings()
     }
     const int currentTab = pref->getPropCurTab();
     const bool visible = pref->getPropVisible();
+    m_expandedTabIndex = currentTab;
     m_ui->filesList->header()->restoreState(pref->getPropFileListState());
     m_tabBar->setCurrentIndex(currentTab);
     if (!visible)
+    {
         setVisibility(false);
+        saveSettings();
+    }
+    updateHideButton();
 }
 
 void PropertiesWidget::saveSettings()
@@ -1212,6 +1305,7 @@ void PropertiesWidget::configure()
             m_ui->speedLayout->addWidget(m_speedWidget);
         }
     }
+    updateHideButton();
 }
 
 void PropertiesWidget::askWebSeed()

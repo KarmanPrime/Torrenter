@@ -86,6 +86,7 @@ signals:
 
 public slots:
     void setVisibility(bool visible);
+    void togglePanelVisibility();
     void setCurrentTab(int index);
     void animateSplitterSizes(const QList<int> &target);
     void loadTorrentInfos(BitTorrent::Torrent *torrent);
@@ -107,6 +108,8 @@ protected slots:
 
 private slots:
     void configure();
+    void updateHideButton();
+    void onSplitterMoved();
     void setupGeneralCards();
     void updateGeneralHeader();
     void updateTabCounts();
@@ -139,6 +142,9 @@ private:
     QToolButton *m_addPeersButton = nullptr;
     LineEdit *m_contentFilterLine = nullptr;
     int m_handleWidth = -1;
+    int m_expandedTabIndex = 0;
+    bool m_ignoreSplitterMoved = false;
+    bool m_animatingToCollapse = false;
 
     SettingValue<FilterPatternFormat> m_storeFilterPatternFormat;
     QTimer m_slideAnimTimer;

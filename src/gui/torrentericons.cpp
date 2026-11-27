@@ -210,6 +210,7 @@ namespace
             {u"chevrons-up-down"_s, svg(R"SVG(<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>)SVG")},
             {u"chevron-right"_s, svg(R"SVG(<path d="m9 18 6-6-6-6"/>)SVG")},
             {u"chevron-down"_s, svg(R"SVG(<path d="m6 9 6 6 6-6"/>)SVG")},
+            {u"chevron-up"_s, svg(R"SVG(<path d="m6 15 6-6 6 6"/>)SVG")},
             // Panels, trackers, misc
             {u"view-categories"_s, svg(R"SVG(<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Z"/>)SVG")},
             {u"tags"_s, svg(R"SVG(<path d="M3 12V4h8l10 10-8 8L3 12Z"/><circle cx="7.5" cy="7.5" r="1"/>)SVG")},
