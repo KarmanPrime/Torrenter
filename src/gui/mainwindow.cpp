@@ -588,7 +588,9 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     m_ui->centralWidgetLayout->insertWidget(0, m_compactChipRow);
     m_compactChipRow->hide();
 
-    m_compactDrawer = new QWidget(m_splitter);
+    // The drawer is an overlay child of the tab widget. It must NOT be a
+    // QSplitter child: QSplitter adopts every child widget as a new rightmost pane.
+    m_compactDrawer = new QWidget(m_tabs.data());
     m_compactDrawer->setObjectName(u"torrenterCompactDrawer"_s);
     m_compactDrawer->setAutoFillBackground(true);
     m_compactDrawer->hide();
@@ -600,13 +602,7 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     m_compactDrawerToggle->setToolTip(tr("Show sidebar"));
     m_compactDrawerToggle->setToolButtonStyle(Qt::ToolButtonIconOnly);
     m_compactDrawerToggleAction = m_ui->toolBar->insertWidget(m_ui->toolBar->actions().value(0), m_compactDrawerToggle);
-    m_compactDrawerToggleAction->setVisible(false);
-    connect(m_compactDrawerToggle, &QToolButton::clicked, this, [this]()
-    {
-        m_compactDrawerOpen = !m_compactDrawerOpen;
-        m_compactDrawer->setVisible(m_compactDrawerOpen);
-        m_compactDrawer->raise();
-    });
+    connect(m_compactDrawerToggle, &QToolButton::clicked, this, &MainWindow::toggleSidebar);
 
     m_compactOverflow = new QToolButton(this);
     m_compactOverflow->setObjectName(u"torrenterCompactOverflow"_s);
@@ -855,6 +851,15 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     if (isFiltersSidebarVisible)
     {
         showFiltersSidebar(true);
+        // On a narrow launch the sidebar is created but auto-collapsed; the
+        // toggle is still available and the user's saved choice is untouched.
+        if (m_compactMode)
+        {
+            m_compactDrawerOpen = false;
+            m_compactDrawer->hide();
+            m_transferListFiltersWidget->hide();
+            updateSidebarToggle();
+        }
     }
     else
     {
@@ -1601,12 +1606,45 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     return QMainWindow::eventFilter(obj, event);
 }
 
+bool MainWindow::isSidebarOpen() const
+{
+    if (m_compactMode)
+        return m_compactDrawerOpen && m_compactDrawer && m_compactDrawer->isVisible();
+    return m_transferListFiltersWidget && m_transferListFiltersWidget->isVisible();
+}
+
+void MainWindow::positionCompactDrawer()
+{
+    if (!m_compactDrawer || !m_tabs || !m_splitter)
+        return;
+    const QPoint origin = m_splitter->mapTo(m_tabs.data(), QPoint(0, 0));
+    m_compactDrawer->setGeometry(origin.x(), origin.y(), 220, m_splitter->height());
+    m_compactDrawer->raise();
+}
+
+void MainWindow::toggleSidebar()
+{
+    const bool show = !isSidebarOpen();
+    m_ui->actionShowFiltersSidebar->setChecked(show);
+    on_actionShowFiltersSidebar_triggered(show);
+}
+
+void MainWindow::updateSidebarToggle()
+{
+    const bool open = isSidebarOpen();
+    if (m_compactDrawerToggle)
+        m_compactDrawerToggle->setToolTip(open ? tr("Hide sidebar") : tr("Show sidebar"));
+    m_compactChipRow->setVisible(m_compactMode && !open);
+    if (m_compactMode && !open)
+        updateCompactChips();
+}
+
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
     setCompactMode(width() < 960);
-    if (m_compactMode && m_compactDrawer)
-        m_compactDrawer->setGeometry(0, 0, 220, m_splitter->height());
+    if (m_compactMode)
+        positionCompactDrawer();
 }
 
 void MainWindow::setCompactMode(bool enabled)
@@ -1615,8 +1653,6 @@ void MainWindow::setCompactMode(bool enabled)
         return;
     m_compactMode = enabled;
 
-    m_compactChipRow->setVisible(enabled);
-    m_compactDrawerToggleAction->setVisible(enabled);
     m_compactOverflowAction->setVisible(enabled);
     m_ui->toolBar->setProperty("compact", enabled);
     m_ui->toolBar->style()->unpolish(m_ui->toolBar);
@@ -1666,26 +1702,28 @@ void MainWindow::setCompactMode(bool enabled)
 
         if (m_transferListFiltersWidget)
         {
-            m_sidebarSplitterIndex = m_splitter->indexOf(m_transferListFiltersWidget);
+            m_sidebarSplitterIndex = 0;
             m_transferListFiltersWidget->setParent(m_compactDrawer);
             auto *drawerLayout = m_compactDrawer->layout();
             if (!drawerLayout)
                 drawerLayout = new QVBoxLayout(m_compactDrawer);
             drawerLayout->setContentsMargins(0, 0, 0, 0);
             drawerLayout->addWidget(m_transferListFiltersWidget);
-            m_transferListFiltersWidget->show();
         }
+        // Auto-collapse on entering compact mode, but keep the user's saved choice.
         m_compactDrawerOpen = false;
         m_compactDrawer->hide();
+        positionCompactDrawer();
     }
     else
     {
         if (m_transferListFiltersWidget && (m_transferListFiltersWidget->parent() == m_compactDrawer))
         {
             m_transferListFiltersWidget->setParent(m_splitter);
-            m_splitter->insertWidget(qMax(0, m_sidebarSplitterIndex), m_transferListFiltersWidget);
-            m_transferListFiltersWidget->show();
+            m_splitter->insertWidget(0, m_transferListFiltersWidget);
+            m_transferListFiltersWidget->setVisible(m_ui->actionShowFiltersSidebar->isChecked());
         }
+        m_compactDrawerOpen = false;
         m_compactDrawer->hide();
         for (QAction *action : m_compactHiddenActions)
             action->setVisible(true);
@@ -1703,6 +1741,7 @@ void MainWindow::setCompactMode(bool enabled)
     m_ui->toolBar->updateGeometry();
     if (m_relayoutSearchField)
         m_relayoutSearchField();
+    updateSidebarToggle();
 }
 
 void MainWindow::updateCompactChips()
@@ -1990,6 +2029,7 @@ void MainWindow::showFiltersSidebar(const bool show)
     {
         m_transferListFiltersWidget = new TransferListFiltersWidget(m_splitter, m_transferListWidget, isDownloadTrackerFavicon());
         m_splitter->insertWidget(0, m_transferListFiltersWidget);
+        m_sidebarSplitterIndex = 0;
         m_splitter->setCollapsible(0, true);
         // From https://doc.qt.io/qt-5/qsplitter.html#setSizes:
         // Instead, any additional/missing space is distributed amongst the widgets
@@ -1997,25 +2037,56 @@ void MainWindow::showFiltersSidebar(const bool show)
         m_splitter->setStretchFactor(0, 0);
         m_splitter->setStretchFactor(1, 1);
         m_splitter->setSizes({Preferences::instance()->getFiltersSidebarWidth()});
+    }
+
+    if (show && m_transferListFiltersWidget)
+    {
         if (m_compactMode && m_compactDrawer)
         {
-            m_sidebarSplitterIndex = m_splitter->indexOf(m_transferListFiltersWidget);
-            m_transferListFiltersWidget->setParent(m_compactDrawer);
-            auto *drawerLayout = m_compactDrawer->layout();
-            if (!drawerLayout)
-                drawerLayout = new QVBoxLayout(m_compactDrawer);
-            drawerLayout->setContentsMargins(0, 0, 0, 0);
-            drawerLayout->addWidget(m_transferListFiltersWidget);
-            m_transferListFiltersWidget->hide();
+            if (m_transferListFiltersWidget->parent() != m_compactDrawer)
+            {
+                m_sidebarSplitterIndex = 0;
+                m_transferListFiltersWidget->setParent(m_compactDrawer);
+                auto *drawerLayout = m_compactDrawer->layout();
+                if (!drawerLayout)
+                    drawerLayout = new QVBoxLayout(m_compactDrawer);
+                drawerLayout->setContentsMargins(0, 0, 0, 0);
+                drawerLayout->addWidget(m_transferListFiltersWidget);
+            }
+            m_compactDrawerOpen = true;
+            positionCompactDrawer();
+            m_compactDrawer->show();
+            m_compactDrawer->raise();
+            m_transferListFiltersWidget->show();
         }
-        updateCompactChips();
+        else
+        {
+            if (m_transferListFiltersWidget->parent() != m_splitter)
+            {
+                m_transferListFiltersWidget->setParent(m_splitter);
+                m_splitter->insertWidget(0, m_transferListFiltersWidget);
+            }
+            m_transferListFiltersWidget->show();
+        }
     }
     else if (!show && m_transferListFiltersWidget)
     {
-        saveSplitterSettings();
-        delete m_transferListFiltersWidget;
-        m_transferListFiltersWidget = nullptr;
+        if (m_compactMode && m_compactDrawer)
+        {
+            m_compactDrawerOpen = false;
+            m_compactDrawer->hide();
+            m_transferListFiltersWidget->hide();
+        }
+        else
+        {
+            saveSplitterSettings();
+            delete m_transferListFiltersWidget;
+            m_transferListFiltersWidget = nullptr;
+        }
     }
+
+    m_ui->actionShowFiltersSidebar->setChecked(show);
+    updateSidebarToggle();
 }
 
 void MainWindow::loadPreferences()

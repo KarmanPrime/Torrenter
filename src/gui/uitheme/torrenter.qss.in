@@ -164,7 +164,7 @@ QToolButton#torrenterStatusChip { background: ${pressed}; color: ${text2}; borde
   border-radius: 6px; padding: 0 10px; font-size: 12px; font-weight: 500; }
 QToolButton#torrenterStatusChip[variant="chipActive"] { background: ${accentSoft}; color: ${accentText}; }
 QWidget#torrenterCompactDrawer { background: ${overlay}; border-right: 1px solid ${line}; }
-QToolButton#torrenterCompactDrawerToggle, QToolButton#torrenterCompactOverflow {
+QToolButton#torrenterCompactOverflow {
   background: transparent; border: none; border-radius: 7px; padding: 5px; }
 QToolBar[compact="true"] QToolButton#torrenterCompactOverflow { margin-left: 12px; }
 

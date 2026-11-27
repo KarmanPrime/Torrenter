@@ -328,6 +328,9 @@
    <property name="text">
     <string>Filters Sidebar</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
+   </property>
   </action>
   <action name="actionSpeedInTitleBar">
    <property name="checkable">
