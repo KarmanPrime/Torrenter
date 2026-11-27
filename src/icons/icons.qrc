@@ -364,6 +364,8 @@
         <file>view-statistics.svg</file>
         <file>wallet-open.svg</file>
         <file alias="qbittorrent.svg">qbittorrent-tray.svg</file>
+        <file alias="torrenter-icon.svg">qbittorrent-tray.svg</file>
+        <file alias="torrenter-icon-light.svg">torrenter-icon-light.svg</file>
         <file alias="qbittorrent-tray-mono.svg">qbittorrent-tray-light.svg</file>
         <file alias="dark/qbittorrent-tray-mono.svg">qbittorrent-tray-dark.svg</file>
         <file>check-on-accent.svg</file>

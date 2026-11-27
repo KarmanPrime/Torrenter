@@ -9,57 +9,93 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QImage>
 #include <QLabel>
 #include <QPainter>
 #include <QPen>
 #include <QPushButton>
+#include <QSvgRenderer>
 #include <QStackedLayout>
 #include <QVBoxLayout>
 
 #include "themetokens.h"
 #include "torrentericons.h"
+#include "uithememanager.h"
 
 using namespace Qt::Literals::StringLiterals;
 
+EmptyIllustration::EmptyIllustration(QWidget *parent)
+    : QWidget(parent)
+{
+    connect(UIThemeManager::instance(), &UIThemeManager::themeChanged, this, [this]()
+    {
+        m_cachedPixmap = QPixmap();
+        m_cachedSize = QSize();
+        m_cachedDpr = 0;
+        m_cachedMode = -1;
+        update();
+    });
+}
+
 QSize EmptyIllustration::sizeHint() const
 {
-    // Geometry mirrors mockup 07 exactly: a 132x112 box holds the 112x80
-    // dashed outline, the 56px tile straddling its top edge and two tracks.
     return {132, 112};
 }
 
 void EmptyIllustration::paintEvent(QPaintEvent *)
 {
+    const qreal dpr = devicePixelRatioF();
     const auto mode = ThemeTokens::currentMode();
+    const QSize logicalSize = size();
+
+    if (m_cachedPixmap.isNull() || m_cachedSize != logicalSize
+        || !qFuzzyCompare(m_cachedDpr, dpr) || m_cachedMode != static_cast<int>(mode))
+    {
+        QImage image(QSize(logicalSize.width() * dpr, logicalSize.height() * dpr)
+            , QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        QPainter imagePainter(&image);
+        imagePainter.scale(dpr, dpr);
+        imagePainter.setRenderHint(QPainter::Antialiasing);
+
+        // 112x76 dashed rounded card, radius 12, 1.5px border, 10px inset.
+        const QRectF card {10, 18, 112, 76};
+        QPen dash {ThemeTokens::color(ThemeTokens::Token::LineStrong, mode)};
+        dash.setWidthF(1.5);
+        dash.setStyle(Qt::DashLine);
+        imagePainter.setPen(dash);
+        imagePainter.setBrush(Qt::NoBrush);
+        imagePainter.drawRoundedRect(card, 12, 12);
+
+        // The brand icon IS the 56px tile: render the SVG into the tile rect,
+        // inset 0, centered and overlapping the card's top edge.
+        const QRectF tile {38, 2, 56, 56};
+        const QString iconPath = (mode == ThemeTokens::Mode::Dark)
+            ? u":/icons/torrenter-icon.svg"_s
+            : u":/icons/torrenter-icon-light.svg"_s;
+        QSvgRenderer renderer(iconPath);
+        if (renderer.isValid())
+            renderer.render(&imagePainter, tile);
+
+        // Two centered progress tracks inside the card: 32x4 mint over
+        // an 88x4 empty track, both radius 2.
+        imagePainter.setPen(Qt::NoPen);
+        imagePainter.setBrush(ThemeTokens::color(ThemeTokens::Token::Accent, mode));
+        imagePainter.drawRoundedRect(QRectF(50, 68, 32, 4), 2, 2);
+        imagePainter.setBrush(ThemeTokens::color(ThemeTokens::Token::Track, mode));
+        imagePainter.drawRoundedRect(QRectF(22, 80, 88, 4), 2, 2);
+
+        imagePainter.end();
+        m_cachedPixmap = QPixmap::fromImage(image);
+        m_cachedPixmap.setDevicePixelRatio(dpr);
+        m_cachedSize = logicalSize;
+        m_cachedDpr = dpr;
+        m_cachedMode = static_cast<int>(mode);
+    }
+
     QPainter painter {this};
     painter.setRenderHint(QPainter::Antialiasing);
-
-    // 112x80 dashed rounded outline (1.5px lineStrong, radius 14).
-    QPen dash {ThemeTokens::color(ThemeTokens::Token::LineStrong, mode)};
-    dash.setWidthF(1.5);
-    dash.setStyle(Qt::DashLine);
-    painter.setPen(dash);
-    painter.setBrush(Qt::NoBrush);
-    painter.drawRoundedRect(QRectF(10, 18, 112, 80), 14, 14);
-
-    // 56px app-icon tile sitting on top of the outline.
-    const QRectF tile {38, 0, 56, 56};
-    painter.setPen(QPen(ThemeTokens::color(ThemeTokens::Token::Line, mode), 1));
-    painter.setBrush(ThemeTokens::color(ThemeTokens::Token::Raised, mode));
-    painter.drawRoundedRect(tile, 15, 15);
-    const QIcon appIcon = TorrenterIcons::icon(u"torrenter-glyph"_s, ThemeTokens::Token::Accent, mode);
-    appIcon.paint(&painter, tile.adjusted(12, 12, 12, 12).toRect());
-
-    // Two little progress tracks under the tile: the top one is 55% accent.
-    painter.setPen(Qt::NoPen);
-    const QRectF firstTrack {46, 66, 40, 4};
-    painter.setBrush(ThemeTokens::color(ThemeTokens::Token::Track, mode));
-    painter.drawRoundedRect(firstTrack, 2, 2);
-    painter.setBrush(ThemeTokens::color(ThemeTokens::Token::Accent, mode));
-    painter.drawRoundedRect(QRectF(46, 66, 22, 4), 2, 2);  // 55% of 40px
-    const QRectF secondTrack {34, 78, 64, 4};
-    painter.setBrush(ThemeTokens::color(ThemeTokens::Token::Track, mode));
-    painter.drawRoundedRect(secondTrack, 2, 2);
+    painter.drawPixmap(0, 0, m_cachedPixmap);
 }
 
 void DropHighlightOverlay::paintEvent(QPaintEvent *)

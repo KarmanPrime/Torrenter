@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QPixmap>
 
 class QLabel;
 class QPushButton;
@@ -15,12 +16,18 @@ class QStackedLayout;
 class EmptyIllustration final : public QWidget
 {
 public:
-    using QWidget::QWidget;
+    explicit EmptyIllustration(QWidget *parent = nullptr);
 
     QSize sizeHint() const override;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+
+private:
+    QPixmap m_cachedPixmap;
+    QSize m_cachedSize;
+    qreal m_cachedDpr = 0;
+    int m_cachedMode = -1;
 };
 
 // Transparent-for-mouse overlay that paints the accent drop highlight over

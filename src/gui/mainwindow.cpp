@@ -42,6 +42,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QComboBox>
@@ -242,7 +243,15 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     addButton->setDefaultAction(m_ui->actionOpen);
     addButton->setPopupMode(QToolButton::MenuButtonPopup);
     addButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    addButton->setFixedHeight(32);
+    addButton->setIconSize(QSize(16, 16));
+    addButton->setFixedHeight(30);
+    // Main zone: 12 + icon 16 + gap 6 + text + 12; menu zone: 24.
+    {
+        QFont addFont = addButton->font();
+        addFont.setWeight(QFont::DemiBold);  // 600
+        const int addTextWidth = QFontMetrics(addFont).horizontalAdvance(tr("Add"));
+        addButton->setFixedWidth(12 + 16 + 6 + addTextWidth + 12 + 24);
+    }
     auto *addMenu = new QMenu(addButton);
     QAction *addFileAction = addMenu->addAction(m_ui->actionOpen->icon(), tr("Add file"));
     connect(addFileAction, &QAction::triggered, m_ui->actionOpen, &QAction::trigger);
@@ -261,17 +270,40 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     };
     syncAddLabel();
     connect(m_ui->actionOpen, &QAction::changed, addButton, syncAddLabel);
+    // TEMP-ADD-CAPTURE: remove after screenshot pass.
+    if (qEnvironmentVariableIsSet("TORRENTER_ADD_QA"))
+    {
+        const QString mode = QString::fromLatin1(qgetenv("TORRENTER_ADD_QA"));
+        QTimer::singleShot(2600, this, [addButton, mode]()
+        {
+            if (mode == u"main"_s || mode == u"menu"_s)
+            {
+                const QPointF pos = (mode == u"main"_s)
+                    ? QPointF(30, 15) : QPointF(addButton->width() - 12, 15);
+                QHoverEvent hover(QEvent::HoverMove, pos, QPointF());
+                QCoreApplication::sendEvent(addButton, &hover);
+            }
+            else if (mode == u"open"_s)
+            {
+                addButton->showMenu();
+            }
+        });
+    }
+    addButton->installEventFilter(this);
     addButton->setStyleSheet(
         QStringLiteral("QToolButton#torrenterAddButton { background: %1; color: %2; border: none; border-radius: 8px;"
-            " min-height: 32px; padding: 0 8px 0 12px; font-weight: 600; }"
-            " QToolButton#torrenterAddButton:hover { background: %3; }"
+            " min-height: 30px; padding: 0 36px 0 12px; font-weight: 600; }"
+            " QToolButton#torrenterAddButton[zoneHover=\"main\"] { background: %3; }"
+            " QToolButton#torrenterAddButton[zonePressed=\"main\"] { background: %4; }"
             " QToolButton#torrenterAddButton:pressed { background: %4; }"
-            " QToolButton#torrenterAddButton::menu-button { border-left: 1px solid %5;"
-            " border-top-right-radius: 8px; border-bottom-right-radius: 8px; width: 20px; background: transparent; }"
-            " QToolButton#torrenterAddButton::menu-button:hover { background: %4; }")
+            " QToolButton#torrenterAddButton::menu-button { width: 24px; border-left: 1px solid rgba(12,13,15,0.25);"
+            " border-top-right-radius: 8px; border-bottom-right-radius: 8px; background: transparent; }"
+            " QToolButton#torrenterAddButton::menu-button:hover { background: %4; }"
+            " QToolButton#torrenterAddButton[zoneHover=\"menu\"]::menu-button { background: %4; }"
+            " QToolButton#torrenterAddButton[zonePressed=\"menu\"]::menu-button { background: %4; }")
         .arg(tokenCss(ThemeTokens::Token::Accent), tokenCss(ThemeTokens::Token::OnAccent)
             , tokenCss(ThemeTokens::Token::AccentHover), tokenCss(ThemeTokens::Token::AccentPress)
-            , tokenCss(ThemeTokens::Token::Line)));
+            ));
     m_ui->toolBar->addWidget(addButton);
     m_ui->toolBar->addAction(m_ui->actionDownloadFromURL);
     m_ui->toolBar->addSeparator();
@@ -879,15 +911,18 @@ void MainWindow::refreshToolbarStyles()
     {
         addButton->setStyleSheet(
             QStringLiteral("QToolButton#torrenterAddButton { background: %1; color: %2; border: none; border-radius: 8px;"
-                " min-height: 32px; padding: 0 8px 0 12px; font-weight: 600; }"
-                " QToolButton#torrenterAddButton:hover { background: %3; }"
+                " min-height: 30px; padding: 0 36px 0 12px; font-weight: 600; }"
+                " QToolButton#torrenterAddButton[zoneHover=\"main\"] { background: %3; }"
+            " QToolButton#torrenterAddButton[zonePressed=\"main\"] { background: %4; }"
                 " QToolButton#torrenterAddButton:pressed { background: %4; }"
-                " QToolButton#torrenterAddButton::menu-button { border-left: 1px solid %5;"
-                " border-top-right-radius: 8px; border-bottom-right-radius: 8px; width: 20px; background: transparent; }"
-                " QToolButton#torrenterAddButton::menu-button:hover { background: %4; }")
+                " QToolButton#torrenterAddButton::menu-button { width: 24px; border-left: 1px solid rgba(12,13,15,0.25);"
+                " border-top-right-radius: 8px; border-bottom-right-radius: 8px; background: transparent; }"
+                " QToolButton#torrenterAddButton::menu-button:hover { background: %4; }"
+            " QToolButton#torrenterAddButton[zoneHover=\"menu\"]::menu-button { background: %4; }"
+            " QToolButton#torrenterAddButton[zonePressed=\"menu\"]::menu-button { background: %4; }")
             .arg(tokenCss(ThemeTokens::Token::Accent), tokenCss(ThemeTokens::Token::OnAccent)
                 , tokenCss(ThemeTokens::Token::AccentHover), tokenCss(ThemeTokens::Token::AccentPress)
-                , tokenCss(ThemeTokens::Token::Line)));
+                ));
     }
 
     const QString groupButtonCss = QStringLiteral(
@@ -1531,6 +1566,55 @@ void MainWindow::on_actionStatistics_triggered()
         m_statsDlg->setAttribute(Qt::WA_DeleteOnClose);
         m_statsDlg->show();
     }
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    auto *button = qobject_cast<QToolButton *>(obj);
+    if (button && (button->objectName() == u"torrenterAddButton"_s))
+    {
+        const auto applyZone = [button](const char *name, const QString &value)
+        {
+            if (button->property(name).toString() == value)
+                return;
+            button->setProperty(name, value);
+            button->style()->unpolish(button);
+            button->style()->polish(button);
+            button->update();
+        };
+
+        switch (event->type())
+        {
+        case QEvent::HoverEnter:
+        case QEvent::HoverMove:
+        case QEvent::MouseMove:
+        {
+            QPointF pos;
+            if (auto *he = dynamic_cast<QHoverEvent *>(event))
+                pos = he->pos();
+            else if (auto *me = dynamic_cast<QMouseEvent *>(event))
+                pos = me->pos();
+            applyZone("zoneHover", (pos.x() < (button->width() - 24)) ? u"main"_s : u"menu"_s);
+            break;
+        }
+        case QEvent::HoverLeave:
+            applyZone("zoneHover", QString());
+            break;
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonDblClick:
+        {
+            auto *me = static_cast<QMouseEvent *>(event);
+            applyZone("zonePressed", (me->pos().x() < (button->width() - 24)) ? u"main"_s : u"menu"_s);
+            break;
+        }
+        case QEvent::MouseButtonRelease:
+            applyZone("zonePressed", QString());
+            break;
+        default:
+            break;
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)

@@ -167,8 +167,6 @@ QWidget#torrenterCompactDrawer { background: ${overlay}; border-right: 1px solid
 QToolButton#torrenterCompactDrawerToggle, QToolButton#torrenterCompactOverflow {
   background: transparent; border: none; border-radius: 7px; padding: 5px; }
 QToolBar[compact="true"] QToolButton#torrenterCompactOverflow { margin-left: 12px; }
-QToolButton#torrenterAddButton[compactAdd="true"]::menu-button { width: 0; border: none; background: transparent; }
-QToolBar[compact="true"] QToolButton#torrenterAddButton { padding-right: 8px; }
 
 /* Phase E: Speed tab readouts and period selector */
 SpeedWidget QWidget#speedReadout { background: transparent; }

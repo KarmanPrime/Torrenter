@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include <QEvent>
 #include <QResizeEvent>
 #include <QToolButton>
 #include <QList>
@@ -204,6 +205,7 @@ private:
 
     void closeEvent(QCloseEvent *) override;
     void showEvent(QShowEvent *) override;
+    bool eventFilter(QObject *obj, QEvent *event) override;
     void resizeEvent(QResizeEvent *) override;
     void setCompactMode(bool enabled);
     void updateCompactChips();
