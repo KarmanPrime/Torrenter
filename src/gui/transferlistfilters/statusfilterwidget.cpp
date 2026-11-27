@@ -42,6 +42,9 @@
 StatusFilterWidget::StatusFilterWidget(QWidget *parent, TransferListWidget *transferList)
     : BaseFilterWidget(parent, transferList)
 {
+    // The status section is the default active sidebar section (design: 01-main-dark)
+    setProperty("torrenterDefaultActive", true);
+
     // Add status filters
     auto *all = new QListWidgetItem(this);
     all->setData(Qt::DisplayRole, tr("All (0)", "this is for the status filter"));
@@ -72,10 +75,10 @@ StatusFilterWidget::StatusFilterWidget(QWidget *parent, TransferListWidget *tran
     stalled->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"filter-stalled"_s, u"filterstalled"_s));
     auto *stalledUploading = new QListWidgetItem(this);
     stalledUploading->setData(Qt::DisplayRole, tr("Stalled Uploading (0)"));
-    stalledUploading->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"stalledUP"_s));
+    stalledUploading->setData(Qt::UserRole, true);  // indented child of Stalled (no icon)
     auto *stalledDownloading = new QListWidgetItem(this);
     stalledDownloading->setData(Qt::DisplayRole, tr("Stalled Downloading (0)"));
-    stalledDownloading->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"stalledDL"_s));
+    stalledDownloading->setData(Qt::UserRole, true);  // indented child of Stalled (no icon)
     auto *checking = new QListWidgetItem(this);
     checking->setData(Qt::DisplayRole, tr("Checking (0)"));
     checking->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"force-recheck"_s, u"checking"_s));
@@ -99,6 +102,11 @@ StatusFilterWidget::StatusFilterWidget(QWidget *parent, TransferListWidget *tran
         setCurrentRow(TorrentFilter::All, QItemSelectionModel::SelectCurrent);
     else
         setCurrentRow(storedRow, QItemSelectionModel::SelectCurrent);
+}
+
+QString StatusFilterWidget::countText(const int row) const
+{
+    return (item(row) ? item(row)->text() : QString());
 }
 
 StatusFilterWidget::~StatusFilterWidget()

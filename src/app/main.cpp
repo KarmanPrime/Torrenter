@@ -30,6 +30,7 @@
 #include <QtSystemDetection>
 
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 
@@ -51,7 +52,9 @@
 
 #ifndef DISABLE_GUI
 // GUI-only includes
+#include <QApplication>
 #include <QFont>
+#include <QIcon>
 #include <QMessageBox>
 #include <QPainter>
 #include <QPen>
@@ -121,11 +124,11 @@ namespace
         }
         else
         {
-            const QString errMsg = QCoreApplication::translate("Main", "qBittorrent has encountered an unrecoverable error.") + u'\n' + message + u'\n';
+            const QString errMsg = QCoreApplication::translate("Main", "Torrenter has encountered an unrecoverable error.") + u'\n' + message + u'\n';
             fprintf(stderr, "%s", qUtf8Printable(errMsg));
         }
 #else
-        const QString errMsg = QCoreApplication::translate("Main", "qBittorrent has encountered an unrecoverable error.") + u'\n' + message + u'\n';
+        const QString errMsg = QCoreApplication::translate("Main", "Torrenter has encountered an unrecoverable error.") + u'\n' + message + u'\n';
         fprintf(stderr, "%s", qUtf8Printable(errMsg));
 #endif
     }
@@ -194,6 +197,10 @@ int main(int argc, char *argv[])
         // Create Application
         app = std::make_unique<Application>(argc, argv);
 
+#ifndef DISABLE_GUI
+        QApplication::setWindowIcon(QIcon(u":/icons/qbittorrent.svg"_s));
+#endif
+
 #ifdef Q_OS_WIN
         // QCoreApplication::applicationDirPath() needs an Application object instantiated first
         // Let's hope that there won't be a crash before this line
@@ -234,14 +241,14 @@ int main(int argc, char *argv[])
 #if defined(DISABLE_GUI) && !defined(Q_OS_WIN)
             if (params.shouldDaemonize)
             {
-                throw CommandLineParameterError(QCoreApplication::translate("Main", "You cannot use %1: qBittorrent is already running.")
+                throw CommandLineParameterError(QCoreApplication::translate("Main", "You cannot use %1: Torrenter is already running.")
                     .arg(u"-d (or --daemon)"_s));
             }
 
             // print friendly message if there are no other command line args
             if (argc == 1)
             {
-                const QString message = QCoreApplication::translate("Main", "Another qBittorrent instance is already running.");
+                const QString message = QCoreApplication::translate("Main", "Another Torrenter instance is already running.");
                 printf("%s\n", qUtf8Printable(message));
             }
 #endif
@@ -297,7 +304,7 @@ int main(int argc, char *argv[])
                 {
                     // It is undefined behavior to write to log file since there is another qbt instance
                     // in play. But we still do it since there is chance that the log message will survive.
-                    const QString errorMessage = QCoreApplication::translate("Main", "Found unexpected qBittorrent instance. Exiting this instance. Current process ID: %1.")
+                    const QString errorMessage = QCoreApplication::translate("Main", "Found unexpected Torrenter instance. Exiting this instance. Current process ID: %1.")
                         .arg(QString::number(QCoreApplication::applicationPid()));
                     LogMsg(errorMessage, Log::CRITICAL);
                     // stdout, stderr is closed so we can't use them

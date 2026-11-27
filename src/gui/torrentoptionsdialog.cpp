@@ -385,9 +385,10 @@ TorrentOptionsDialog::TorrentOptionsDialog(QWidget *parent, const QList<BitTorre
     connect(m_ui->spinDownloadLimit, &QSpinBox::valueChanged, this, [this](const int value) { updateSliderValue(m_ui->sliderDownloadLimit, value); });
 
     m_ui->scrollArea->widget()->adjustSize();
+    setMinimumHeight(800);
 
     if (const QSize dialogSize = m_storeDialogSize; dialogSize.isValid())
-        resize(dialogSize);
+        resize(dialogSize.width(), qMax(dialogSize.height(), 800));
     else
         adjustSize();
 }

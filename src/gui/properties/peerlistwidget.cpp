@@ -40,6 +40,9 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPointer>
+#include <QPainter>
+#include <QPainterPath>
+#include <QStyledItemDelegate>
 #include <QSet>
 #include <QShortcut>
 #include <QSortFilterProxyModel>
@@ -58,6 +61,7 @@
 #include "base/preferences.h"
 #include "base/utils/misc.h"
 #include "base/utils/string.h"
+#include "gui/themetokens.h"
 #include "gui/uithememanager.h"
 #include "gui/utils/keysequence.h"
 #include "peerlistsortmodel.h"
@@ -92,6 +96,121 @@ namespace
     }
 }
 
+namespace
+{
+    class PeerListItemDelegate final : public QStyledItemDelegate
+    {
+    public:
+        using QStyledItemDelegate::QStyledItemDelegate;
+
+        QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
+        {
+            if (!index.isValid())
+                return QSize(option.rect.width(), 34);
+            QSize size = QStyledItemDelegate::sizeHint(option, index);
+            size.setHeight(34);
+            return size;
+        }
+
+        void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
+        {
+            const auto mode = ThemeTokens::currentMode();
+            const auto color = [mode](const ThemeTokens::Token token) { return ThemeTokens::color(token, mode); };
+            const auto drawBackground = [painter, option, color]()
+            {
+                QPainterPath path;
+                path.addRoundedRect(option.rect.adjusted(2, 1, -2, -1), 6, 6);
+                const bool selected = option.state.testFlag(QStyle::State_Selected);
+                const bool hovered = option.state.testFlag(QStyle::State_MouseOver);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(selected ? color(ThemeTokens::Token::Selected)
+                    : (hovered ? color(ThemeTokens::Token::Hover) : Qt::transparent));
+                painter->drawPath(path);
+            };
+
+            switch (index.column())
+            {
+            case PeerListWidget::COUNTRY:
+                drawBackground();
+                {
+                    QStyleOptionViewItem opt {option};
+                    opt.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver);
+                    opt.text.clear();
+                    opt.features &= ~(QStyleOptionViewItem::HasDisplay | QStyleOptionViewItem::HasDecoration);
+                    QStyledItemDelegate::paint(painter, opt, index);
+                    const QIcon flag = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
+                    if (!flag.isNull())
+                    {
+                        const QRect r {option.rect.left() + 6, option.rect.top() + 11, 16, 12};
+                        QPainterPath shape;
+                        shape.addRoundedRect(r, 2, 2);
+                        painter->save();
+                        painter->setClipPath(shape);
+                        painter->drawPixmap(r, flag.pixmap(16, 12));
+                        painter->restore();
+                        painter->setPen(QPen(QColor(255, 255, 255, 20), 1));
+                        painter->setBrush(Qt::NoBrush);
+                        painter->drawPath(shape);
+                    }
+                }
+                break;
+            case PeerListWidget::IP:
+                drawBackground();
+                {
+                    QFont font = option.font;
+                    font.setPixelSize(12);
+                    font.setStyleHint(QFont::Monospace);
+                    painter->setFont(font);
+                    const QString ip = index.data().toString();
+                    const QString port = index.siblingAtColumn(PeerListWidget::PORT).data().toString();
+                    const QFontMetrics metrics {font};
+                    const int x = option.rect.left() + 8;
+                    const int y = option.rect.center().y() + metrics.height() / 2 - 2;
+                    painter->setPen(color(ThemeTokens::Token::Text1));
+                    painter->drawText(x, y, ip);
+                    painter->setPen(color(ThemeTokens::Token::Text3));
+                    painter->drawText(x + metrics.horizontalAdvance(ip), y, u":"_s + port);
+                }
+                break;
+            case PeerListWidget::FLAGS:
+                drawBackground();
+                {
+                    const QString text = index.data().toString();
+                    const QRect chip {option.rect.left() + 4, option.rect.top() + 7, option.rect.width() - 8, 20};
+                    QPainterPath path;
+                    path.addRoundedRect(chip, 5, 5);
+                    painter->setPen(Qt::NoPen);
+                    painter->setBrush(color(ThemeTokens::Token::Pressed));
+                    painter->drawPath(path);
+                    QFont font = option.font;
+                    font.setPixelSize(11);
+                    font.setWeight(QFont::DemiBold);
+                    painter->setFont(font);
+                    painter->setPen(color(ThemeTokens::Token::Text2));
+                    painter->drawText(chip, Qt::AlignCenter, text);
+                }
+                break;
+            case PeerListWidget::DOWN_SPEED:
+                drawBackground();
+                {
+                    const bool active = index.data(PeerListSortModel::UnderlyingDataRole).toLongLong() > 0;
+                    painter->setPen(color(active ? ThemeTokens::Token::Inkdown : ThemeTokens::Token::Text3));
+                    painter->drawText(option.rect.adjusted(0, 0, 6, 0), Qt::AlignRight | Qt::AlignVCenter, index.data().toString());
+                }
+                break;
+            default:
+                drawBackground();
+                {
+                    QStyleOptionViewItem opt {option};
+                    opt.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver);
+                    QStyledItemDelegate::paint(painter, opt, index);
+                }
+                break;
+            }
+        }
+    };
+}
+
 PeerListWidget::PeerListWidget(PropertiesWidget *parent)
     : QTreeView(parent)
     , m_properties(parent)
@@ -99,16 +218,7 @@ PeerListWidget::PeerListWidget(PropertiesWidget *parent)
     // Load settings
     const bool columnLoaded = loadSettings();
     // Visual settings
-    setUniformRowHeights(true);
-    setRootIsDecorated(false);
-    setItemsExpandable(false);
-    setAllColumnsShowFocus(true);
-    setEditTriggers(QAbstractItemView::NoEditTriggers);
-    setSelectionMode(QAbstractItemView::ExtendedSelection);
-    header()->setFirstSectionMovable(true);
-    header()->setStretchLastSection(false);
-    header()->setTextElideMode(Qt::ElideRight);
-
+    setItemDelegate(new PeerListItemDelegate(this));
     // List Model
     m_listModel = new QStandardItemModel(0, PeerListColumns::COL_COUNT, this);
     m_listModel->setHeaderData(PeerListColumns::COUNTRY, Qt::Horizontal, tr("Country/Region")); // Country flag column
@@ -141,6 +251,29 @@ PeerListWidget::PeerListWidget(PropertiesWidget *parent)
     m_proxyModel->setSourceModel(m_listModel);
     m_proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     setModel(m_proxyModel);
+    // §5.4 columns: address, flag, client, progress, down/up, flags, conn.
+    for (const int hidden : {PeerListWidget::PORT, PeerListWidget::PEERID_CLIENT,
+             PeerListWidget::TOT_DOWN, PeerListWidget::TOT_UP, PeerListWidget::RELEVANCE,
+             PeerListWidget::DOWNLOADING_PIECE, PeerListWidget::CONTRIBUTION, PeerListWidget::IP_HIDDEN})
+        setColumnHidden(hidden, true);
+    header()->setSectionResizeMode(PeerListWidget::IP, QHeaderView::Stretch);
+    for (const auto &columnWidth : {QPair<int, int> {PeerListWidget::COUNTRY, 56},
+             {PeerListWidget::FLAGS, 80}, {PeerListWidget::CLIENT, 180},
+             {PeerListWidget::PROGRESS, 90}, {PeerListWidget::DOWN_SPEED, 110},
+             {PeerListWidget::UP_SPEED, 100}, {PeerListWidget::CONNECTION, 70}})
+    {
+        header()->setSectionResizeMode(columnWidth.first, QHeaderView::Fixed);
+        setColumnWidth(columnWidth.first, columnWidth.second);
+    }
+    setUniformRowHeights(true);
+    setRootIsDecorated(false);
+    setItemsExpandable(false);
+    setAllColumnsShowFocus(true);
+    setEditTriggers(QAbstractItemView::NoEditTriggers);
+    setSelectionMode(QAbstractItemView::ExtendedSelection);
+    header()->setFirstSectionMovable(true);
+    header()->setStretchLastSection(false);
+    header()->setTextElideMode(Qt::ElideRight);
 
     hideColumn(PeerListColumns::IP_HIDDEN);
     hideColumn(PeerListColumns::COL_COUNT);
@@ -284,6 +417,22 @@ void PeerListWidget::updatePeerCountryResolutionState()
     }
 }
 
+void PeerListWidget::addPeers()
+{
+    BitTorrent::Torrent *torrent = m_properties->getCurrentTorrent();
+    if (torrent == nullptr)
+        return;
+    const QList<BitTorrent::PeerAddress> peersList = PeersAdditionDialog::askForPeers(this);
+    const int peerCount = std::ranges::count_if(peersList, [torrent](const BitTorrent::PeerAddress &peer)
+    {
+        return torrent->connectPeer(peer);
+    });
+    if (peerCount < peersList.length())
+        QMessageBox::information(this, tr("Adding peers"), tr("Some peers cannot be added. Check the Log for details."));
+    else if (peerCount > 0)
+        QMessageBox::information(this, tr("Adding peers"), tr("Peers are added to this torrent."));
+}
+
 void PeerListWidget::showPeerListMenu()
 {
     BitTorrent::Torrent *torrent = m_properties->getCurrentTorrent();
@@ -294,18 +443,7 @@ void PeerListWidget::showPeerListMenu()
     menu->setToolTipsVisible(true);
 
     QAction *addNewPeer = menu->addAction(UIThemeManager::instance()->getIcon(u"peers-add"_s), tr("Add peers...")
-        , this, [this, torrent]()
-    {
-        const QList<BitTorrent::PeerAddress> peersList = PeersAdditionDialog::askForPeers(this);
-        const int peerCount = std::ranges::count_if(peersList, [torrent](const BitTorrent::PeerAddress &peer)
-        {
-            return torrent->connectPeer(peer);
-        });
-        if (peerCount < peersList.length())
-            QMessageBox::information(this, tr("Adding peers"), tr("Some peers cannot be added. Check the Log for details."));
-        else if (peerCount > 0)
-            QMessageBox::information(this, tr("Adding peers"), tr("Peers are added to this torrent."));
-    });
+        , this, &PeerListWidget::addPeers);
     QAction *copyPeers = menu->addAction(UIThemeManager::instance()->getIcon(u"edit-copy"_s), tr("Copy IP:port")
         , this, &PeerListWidget::copySelectedPeers);
     menu->addSeparator();
@@ -487,6 +625,48 @@ void PeerListWidget::loadPeers(const BitTorrent::Torrent *torrent)
 
             m_listModel->removeRow(item->row());
         }
+
+#ifdef TORRENTER_QA_HOOKS
+        // QA-only deterministic peer rows for scripted screenshots.
+        if (qEnvironmentVariableIsSet("TORRENTER_QA_FAKE_PEERS") && (m_listModel->rowCount() < 6))
+        {
+            struct FakePeer
+            {
+                const char *ip;
+                int port;
+                const char *client;
+                const char *progress;
+                const char *down;
+                const char *up;
+                const char *flags;
+                const char *connection;
+            };
+            static const FakePeer fakePeers[] = {
+                {"185.21.216.140", 51413, "qBittorrent/5.1.2", "96.1%", "1.8 MiB/s", "312 KiB/s", "DE", "TCP"},
+                {"177.92.14.37", 6881, "Transmission 4.1.0", "100%", "842 KiB/s", "0 B/s", "BR", "uTP"},
+                {"73.218.104.9", 51413, "libtorrent/2.0.9", "74.3%", "412 KiB/s", "18 KiB/s", "US", "TCP"},
+                {"51.158.72.44", 6881, "qBittorrent/4.6.4", "58.0%", "208 KiB/s", "0 B/s", "FR", "uTP"},
+                {"126.203.8.19", 6881, "BitComet/2.1", "31.6%", "96 KiB/s", "4 KiB/s", "JP", "TCP"},
+                {"84.29.167.203", 51413, "Deluge 2.1.1", "12.4%", "0 B/s", "0 B/s", "NL", "TCP"}
+            };
+            for (const FakePeer &peer : fakePeers)
+            {
+                const int row = m_listModel->rowCount();
+                m_listModel->insertRow(row);
+                setModelData(m_listModel, row, PeerListColumns::IP, QString::fromLatin1(peer.ip), QString::fromLatin1(peer.ip));
+                setModelData(m_listModel, row, PeerListColumns::PORT, QString::number(peer.port), peer.port, Qt::AlignRight | Qt::AlignVCenter);
+                setModelData(m_listModel, row, PeerListColumns::CONNECTION, QString::fromLatin1(peer.connection), QString::fromLatin1(peer.connection));
+                setModelData(m_listModel, row, PeerListColumns::CLIENT, QString::fromLatin1(peer.client), QString::fromLatin1(peer.client));
+                setModelData(m_listModel, row, PeerListColumns::PROGRESS, QString::fromLatin1(peer.progress), QString::fromLatin1(peer.progress), Qt::AlignRight | Qt::AlignVCenter);
+                setModelData(m_listModel, row, PeerListColumns::DOWN_SPEED, QString::fromLatin1(peer.down), 1, Qt::AlignRight | Qt::AlignVCenter);
+                setModelData(m_listModel, row, PeerListColumns::UP_SPEED, QString::fromLatin1(peer.up), 1, Qt::AlignRight | Qt::AlignVCenter);
+                setModelData(m_listModel, row, PeerListColumns::FLAGS, QString::fromLatin1(peer.flags), QString::fromLatin1(peer.flags));
+                const QIcon flag = UIThemeManager::instance()->getFlagIcon(QString::fromLatin1(peer.flags));
+                if (!flag.isNull())
+                    m_listModel->setData(m_listModel->index(row, PeerListColumns::COUNTRY), flag, Qt::DecorationRole);
+            }
+        }
+#endif
     });
 }
 

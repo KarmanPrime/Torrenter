@@ -30,12 +30,15 @@
 
 #include "uithemesource.h"
 
+#include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStyleHints>
 
 #include "base/logger.h"
 #include "base/profile.h"
 #include "base/utils/io.h"
+#include "themetokens.h"
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -106,13 +109,13 @@ DefaultThemeSource::DefaultThemeSource()
     , m_colors {defaultUIThemeColors()}
 {
     loadColors();
-    // Palette isn't customizable in default theme
     m_colors.insert(defaultPaletteColors());
 }
 
 QByteArray DefaultThemeSource::readStyleSheet()
 {
-    return {};
+    const auto mode = ThemeTokens::currentMode();
+    return ThemeTokens::processStyleSheet(mode).toUtf8();
 }
 
 QColor DefaultThemeSource::getColor(const QString &colorId, const ColorMode colorMode) const

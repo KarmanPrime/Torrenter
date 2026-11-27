@@ -45,6 +45,7 @@ class StatusFilterWidget final : public BaseFilterWidget
 public:
     StatusFilterWidget(QWidget *parent, TransferListWidget *transferList);
     ~StatusFilterWidget() override;
+    QString countText(int row) const;
 
 private:
     QSize sizeHint() const override;

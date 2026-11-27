@@ -77,6 +77,8 @@ public:
 
     explicit TorrentContentWidget(QWidget *parent = nullptr);
 
+    void setCompactHeaders(bool compact);
+
     void setContentHandler(BitTorrent::TorrentContentHandler *contentHandler);
     BitTorrent::TorrentContentHandler *contentHandler() const;
     void refresh();

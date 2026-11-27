@@ -29,6 +29,11 @@
 
 #pragma once
 
+#include <QResizeEvent>
+#include <QToolButton>
+#include <QList>
+#include <functional>
+
 #include <QMainWindow>
 #include <QPointer>
 
@@ -41,10 +46,12 @@
 class QCloseEvent;
 class QComboBox;
 class QFileSystemWatcher;
+class QLabel;
 class QSplitter;
 class QString;
 class QTabWidget;
 class QTimer;
+class QWidget;
 
 class AboutDialog;
 class DownloadFromURLDialog;
@@ -197,6 +204,9 @@ private:
 
     void closeEvent(QCloseEvent *) override;
     void showEvent(QShowEvent *) override;
+    void resizeEvent(QResizeEvent *) override;
+    void setCompactMode(bool enabled);
+    void updateCompactChips();
     void keyPressEvent(QKeyEvent *event) override;
     bool event(QEvent *e) override;
     void displayRSSTab(bool enable);
@@ -207,6 +217,7 @@ private:
     void applyTransferListFilter();
     void refreshWindowTitle();
     void refreshTrayIconTooltip();
+    void refreshToolbarStyles();
 
 #ifdef Q_OS_WIN
     void installPython();
@@ -245,12 +256,27 @@ private:
     bool m_displaySpeedInTitle = false;
     bool m_forceExit = false;
     bool m_uiLocked = false;
+    bool m_compactMode = false;
+    bool m_compactDrawerOpen = false;
+    QWidget *m_compactChipRow = nullptr;
+    QWidget *m_compactDrawer = nullptr;
+    QToolButton *m_compactDrawerToggle = nullptr;
+    QToolButton *m_compactOverflow = nullptr;
+    QAction *m_compactDrawerToggleAction = nullptr;
+    QAction *m_compactOverflowAction = nullptr;
+    QList<QToolButton *> m_compactChips;
+    QList<QAction *> m_compactHiddenActions;
+    int m_sidebarSplitterIndex = 0;
+    int m_compactSearchWidth = 0;
     bool m_unlockDlgShowing = false;
     QWidget *m_columnFilterWidget = nullptr;
     LineEdit *m_columnFilterEdit = nullptr;
+    QLabel *m_searchHint = nullptr;
+    std::function<void()> m_relayoutSearchField;
     QAction *m_columnFilterAction = nullptr;
     QComboBox *m_columnFilterComboBox = nullptr;
     // Widgets
+    QWidget *m_queueGroup = nullptr;
     QAction *m_queueSeparator = nullptr;
     QAction *m_queueSeparatorMenu = nullptr;
     QSplitter *m_splitter = nullptr;

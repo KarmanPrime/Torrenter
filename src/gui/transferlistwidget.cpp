@@ -29,15 +29,33 @@
 
 #include "transferlistwidget.h"
 
+#include <QLabel>
+#include <QPushButton>
+#include <QResizeEvent>
+#include <QSplitter>
+#include <QTimer>
+#include <QItemSelection>
+#include <QItemSelectionModel>
+#include <QVBoxLayout>
+
 #include <algorithm>
 
 #include <QClipboard>
+#include <QCursor>
 #include <QDebug>
+#include <QDragLeaveEvent>
 #include <QFileDialog>
 #include <QHeaderView>
+#include <QItemSelectionModel>
 #include <QList>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
+#include <QStyle>
+#include <QStyleOptionViewItem>
+#include <QToolButton>
 #include <QMimeData>
 #include <QRegularExpression>
 #include <QSet>
@@ -51,6 +69,7 @@
 #include "base/logger.h"
 #include "base/path.h"
 #include "base/preferences.h"
+#include "base/settingsstorage.h"
 #include "base/torrentfilter.h"
 #include "base/utils/compare.h"
 #include "base/utils/fs.h"
@@ -58,9 +77,13 @@
 #include "base/utils/string.h"
 #include "autoexpandabledialog.h"
 #include "deletionconfirmationdialog.h"
+#include "emptystatewidget.h"
 #include "interfaces/iguiapplication.h"
 #include "mainwindow.h"
 #include "optionsdialog.h"
+#include "properties/peerlistwidget.h"
+#include "properties/propertieswidget.h"
+#include "properties/proptabbar.h"
 #include "previewselectdialog.h"
 #include "speedlimitdialog.h"
 #include "torrentcategorydialog.h"
@@ -69,6 +92,9 @@
 #include "torrentoptionsdialog.h"
 #include "trackerentriesdialog.h"
 #include "transferlistdelegate.h"
+#include "transferlistheaderview.h"
+#include "torrentericons.h"
+#include "themetokens.h"
 #include "transferlistsortmodel.h"
 #include "tristateaction.h"
 #include "uithememanager.h"
@@ -113,6 +139,59 @@ namespace
         for (const BitTorrent::Torrent *torrent : torrents)
             session->removeTorrent(torrent->id(), removeOption);
     }
+    // QPainterPath with independently rounded top/bottom edges so contiguous
+    // selected rows merge into one shape (first rounds the top, last the
+    // bottom, middle rows stay square).
+    void addMergedRowShape(QPainterPath &path, const QRectF &rect, const qreal radius,
+        const bool roundTop, const bool roundBottom)
+    {
+        const qreal x0 = rect.left();
+        const qreal x1 = rect.right();
+        const qreal y0 = rect.top();
+        const qreal y1 = rect.bottom();
+        const qreal diameter = 2 * radius;
+        path.clear();
+
+        if (roundTop)
+        {
+            path.moveTo(x0 + radius, y0);
+            path.lineTo(x1 - radius, y0);
+            // Explicit quarter-circle: arcTo(-90, 90) can insert a line to the
+            // arc start and produce a diagonal edge on merged selections.
+            constexpr qreal kappa = 0.5522847498;
+            path.cubicTo(QPointF(x1 - radius + kappa * radius, y0),
+                         QPointF(x1, y0 + radius - kappa * radius),
+                         QPointF(x1, y0 + radius));
+        }
+        else
+        {
+            path.moveTo(x1, y0);
+        }
+
+        if (roundBottom)
+        {
+            path.lineTo(x1, y1 - radius);
+            path.arcTo(QRectF(x1 - diameter, y1 - diameter, diameter, diameter), 0, 90);
+            path.lineTo(x0 + radius, y1);
+            path.arcTo(QRectF(x0, y1 - diameter, diameter, diameter), 90, 90);
+        }
+        else
+        {
+            path.lineTo(x1, y1);
+            path.lineTo(x0, y1);
+        }
+
+        if (roundTop)
+        {
+            path.lineTo(x0, y0 + radius);
+            path.arcTo(QRectF(x0, y0, diameter, diameter), 180, 90);
+        }
+        else
+        {
+            path.lineTo(x0, y0);
+        }
+        path.closeSubpath();
+    }
 }
 
 TransferListWidget::TransferListWidget(IGUIApplication *app, QWidget *parent)
@@ -120,11 +199,9 @@ TransferListWidget::TransferListWidget(IGUIApplication *app, QWidget *parent)
     , m_listModel {new TransferListModel(this)}
     , m_sortFilterModel {new TransferListSortModel(this)}
 {
-    // Load settings
-    const bool columnLoaded = loadSettings();
-
     // Create and apply delegate
     setItemDelegate(new TransferListDelegate(this));
+    viewport()->installEventFilter(this);
 
     m_sortFilterModel->setDynamicSortFilter(true);
     m_sortFilterModel->setSourceModel(m_listModel);
@@ -133,8 +210,97 @@ TransferListWidget::TransferListWidget(IGUIApplication *app, QWidget *parent)
     m_sortFilterModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     m_sortFilterModel->setSortRole(TransferListModel::UnderlyingDataRole);
     setModel(m_sortFilterModel);
+    setHeader(new TransferListHeaderView(this));
+
+    // QA-v8 item 1: restore AFTER the new header is installed. Restoring into
+    // the old header was discarded when setHeader() replaced it above.
+    const bool columnLoaded = loadSettings();
+
+#ifdef TORRENTER_QA_HOOKS
+    // QA-v8 item 3: harness only. Cap the client download rate so qa-dl.bin
+    // stays in Downloading (mint pill) when the R2 dark capture is taken.
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_SLOW_DL"))
+        BitTorrent::Session::instance()->setGlobalDownloadSpeedLimit(32 * 1024);
+
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_SELECT"))
+    {
+        QTimer::singleShot(6000, this, [this]()
+        {
+            QModelIndex row;
+            for (int i = 0; i < model()->rowCount(); ++i)
+            {
+                const QModelIndex candidate = model()->index(i, TransferListModel::TR_NAME);
+                const QString want = qEnvironmentVariableIsSet("TORRENTER_QA_SELECT_NAME")
+                    ? QString::fromUtf8(qgetenv("TORRENTER_QA_SELECT_NAME")) : u"qa-dl.bin"_s;
+                if (candidate.data().toString().contains(want, Qt::CaseInsensitive))
+                {
+                    row = model()->index(i, 0);
+                    break;
+                }
+            }
+            if (!row.isValid())
+                row = model()->index(0, 0);
+
+            if (qEnvironmentVariableIsSet("TORRENTER_QA_TORRENT_OPTIONS"))
+                setTorrentOptions();
+            if (qEnvironmentVariableIsSet("TORRENTER_QA_DELETE_DIALOG"))
+                deleteSelectedTorrents(false);
+
+            if (row.isValid())
+            {
+                selectionModel()->clearSelection();
+                if (qEnvironmentVariableIsSet("TORRENTER_QA_SELECT_RANGE")
+                    && (row.row() + 1 < model()->rowCount()))
+                {
+                    // Show the merged rounded selection on two adjacent rows.
+                    const QModelIndex lastRow = model()->index(row.row() + 1, 0);
+                    selectionModel()->select(QItemSelection {row, lastRow},
+                        QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+                }
+                else
+                {
+                    selectionModel()->select(row,
+                        QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+                }
+                setCurrentIndex(row);
+                scrollTo(row);
+            }
+
+            // Keep the bottom details panel open on General for the capture.
+            if (qEnvironmentVariableIsSet("TORRENTER_QA_DETAILS"))
+            {
+                if (PropertiesWidget *properties = this->app()->mainWindow()->propertiesWidget())
+                {
+                    properties->setVisibility(true);
+                    const QByteArray tab = qgetenv("TORRENTER_QA_TAB");
+                    const int tabIndex = (tab == "content") ? PropTabBar::FilesTab
+                        : (tab == "peers") ? PropTabBar::PeersTab
+                        : (tab == "trackers") ? PropTabBar::TrackersTab
+                        : (tab == "sources") ? PropTabBar::URLSeedsTab
+                        : (tab == "speed") ? PropTabBar::SpeedTab : PropTabBar::MainTab;
+                    properties->setCurrentTab(tabIndex);
+                    if (qEnvironmentVariableIsSet("TORRENTER_QA_FAKE_PEERS") && properties->getCurrentTorrent())
+                        properties->getPeerList()->loadPeers(properties->getCurrentTorrent());
+                    if (auto *splitter = qobject_cast<QSplitter *>(properties->parentWidget()))
+                    {
+                        QList<int> sizes = splitter->sizes();
+                        if (qEnvironmentVariableIsSet("TORRENTER_QA_PC_TALL") && (sizes.size() == 2))
+                        {
+                            const int total = sizes.at(0) + sizes.at(1);
+                            const int panelHeight = qMin(560, qMax(200, total - 180));
+                            splitter->setSizes({total - panelHeight, panelHeight});
+                        }
+                        else if ((sizes.size() == 2) && (sizes.at(1) < 300) && ((sizes.at(0) + sizes.at(1)) > 420))
+                            splitter->setSizes({sizes.at(0) + sizes.at(1) - 300, 300});
+                    }
+                }
+            }
+        });
+    }
+#endif
 
     // Visual settings
+    setObjectName(u"transferList"_s);
     setUniformRowHeights(true);
     setRootIsDecorated(false);
     setAllColumnsShowFocus(true);
@@ -153,34 +319,104 @@ TransferListWidget::TransferListWidget(IGUIApplication *app, QWidget *parent)
     header()->setStretchLastSection(false);
     header()->setTextElideMode(Qt::ElideRight);
 
+    // Column chooser in the last 28px of the header (design 5.1). It opens
+    // the same column-visibility menu that the header context menu uses.
+    m_columnChooser = new QToolButton(header());
+    m_columnChooser->setObjectName(u"columnChooser"_s);
+    m_columnChooser->setFixedSize(28, 34);
+    m_columnChooser->setIcon(TorrenterIcons::icon(u"configure"_s, ThemeTokens::Token::Text3, ThemeTokens::currentMode()));
+    m_columnChooser->setIconSize({14, 14});
+    m_columnChooser->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    m_columnChooser->setCursor(Qt::PointingHandCursor);
+    m_columnChooser->setToolTip(tr("Column visibility"));
+    connect(m_columnChooser, &QToolButton::clicked, this, &TransferListWidget::displayColumnHeaderMenu);
+    m_columnChooser->move(header()->width() - 28, 0);
+
+    // Empty state per design mockup 07: dashed illustration, title, two-line
+    // body, primary / secondary actions and a pointer to the Search engine.
+    m_emptyState = new EmptyStateWidget(viewport());
+    connect(m_emptyState, &EmptyStateWidget::openFileRequested
+        , this, &TransferListWidget::addTorrentRequested);
+    connect(m_emptyState, &EmptyStateWidget::addLinksRequested
+        , this, &TransferListWidget::addMagnetLinkRequested);
+    connect(m_emptyState, &EmptyStateWidget::clearFilterRequested
+        , this, &TransferListWidget::clearEmptyStateFilter);
+
+    // Drop highlight overlay: transparent to the mouse so existing
+    // drop-to-add behavior is unchanged.
+    m_dropOverlay = new DropHighlightOverlay(viewport());
+    m_dropOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_dropOverlay->setVisible(false);
+#ifdef TORRENTER_QA_HOOKS
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_DROP"))
+    {
+        // QA-only hook to verify the drop highlight painting.
+        m_dropActive = true;
+        m_dropOverlay->setGeometry(viewport()->rect());
+        m_dropOverlay->setVisible(true);
+        m_dropOverlay->raise();
+    }
+#endif
+
+    const auto refreshEmptyState = [this]
+    {
+        QTimer::singleShot(0, this, &TransferListWidget::updateEmptyState);
+    };
+    connect(m_sortFilterModel, &QAbstractItemModel::rowsInserted, this, refreshEmptyState);
+    connect(m_sortFilterModel, &QAbstractItemModel::rowsRemoved, this, refreshEmptyState);
+    connect(m_sortFilterModel, &QAbstractItemModel::modelReset, this, refreshEmptyState);
+    connect(m_sortFilterModel, &QAbstractItemModel::layoutChanged, this, refreshEmptyState);
+    updateEmptyState();
+
     // Default hidden columns
     if (!columnLoaded)
     {
-        setColumnHidden(TransferListModel::TR_CREATE_DATE, true);
-        setColumnHidden(TransferListModel::TR_ADD_DATE, true);
-        setColumnHidden(TransferListModel::TR_SEED_DATE, true);
-        setColumnHidden(TransferListModel::TR_UPLIMIT, true);
-        setColumnHidden(TransferListModel::TR_DLLIMIT, true);
-        setColumnHidden(TransferListModel::TR_TRACKER, true);
-        setColumnHidden(TransferListModel::TR_AMOUNT_DOWNLOADED, true);
-        setColumnHidden(TransferListModel::TR_AMOUNT_UPLOADED, true);
-        setColumnHidden(TransferListModel::TR_AMOUNT_DOWNLOADED_SESSION, true);
-        setColumnHidden(TransferListModel::TR_AMOUNT_UPLOADED_SESSION, true);
-        setColumnHidden(TransferListModel::TR_AMOUNT_LEFT, true);
-        setColumnHidden(TransferListModel::TR_TIME_ELAPSED, true);
-        setColumnHidden(TransferListModel::TR_SAVE_PATH, true);
-        setColumnHidden(TransferListModel::TR_DOWNLOAD_PATH, true);
-        setColumnHidden(TransferListModel::TR_INFOHASH_V1, true);
-        setColumnHidden(TransferListModel::TR_INFOHASH_V2, true);
-        setColumnHidden(TransferListModel::TR_COMPLETED, true);
-        setColumnHidden(TransferListModel::TR_RATIO_LIMIT, true);
-        setColumnHidden(TransferListModel::TR_POPULARITY, true);
-        setColumnHidden(TransferListModel::TR_SEEN_COMPLETE_DATE, true);
-        setColumnHidden(TransferListModel::TR_LAST_ACTIVITY, true);
-        setColumnHidden(TransferListModel::TR_TOTAL_SIZE, true);
-        setColumnHidden(TransferListModel::TR_REANNOUNCE, true);
-        setColumnHidden(TransferListModel::TR_PRIVATE, true);
+        // Default columns from mockup 01: ONLY Name, Size, Progress, Status,
+        // Seeds, Peers, Down, Up, ETA and Ratio are visible.
+        const QList<int> defaultVisibleColumns {
+            TransferListModel::TR_NAME,
+            TransferListModel::TR_SIZE,
+            TransferListModel::TR_PROGRESS,
+            TransferListModel::TR_STATUS,
+            TransferListModel::TR_SEEDS,
+            TransferListModel::TR_PEERS,
+            TransferListModel::TR_DLSPEED,
+            TransferListModel::TR_UPSPEED,
+            TransferListModel::TR_ETA,
+            TransferListModel::TR_RATIO
+        };
+        for (int i = 0; i < TransferListModel::NB_COLUMNS; ++i)
+            setColumnHidden(i, !defaultVisibleColumns.contains(i));
+
+        // Default widths from the design. With the sidebar on screen these
+        // still fit a 1280 px window because Name is the only stretch column.
+        const auto setDefaultWidth = [this](const int column, const int width)
+        {
+            header()->resizeSection(column, width);
+        };
+        setDefaultWidth(TransferListModel::TR_NAME, 220);
+        setDefaultWidth(TransferListModel::TR_SIZE, 84);
+        setDefaultWidth(TransferListModel::TR_PROGRESS, 164);
+        setDefaultWidth(TransferListModel::TR_STATUS, 140);
+        setDefaultWidth(TransferListModel::TR_SEEDS, 84);
+        setDefaultWidth(TransferListModel::TR_PEERS, 72);
+        setDefaultWidth(TransferListModel::TR_DLSPEED, 88);
+        setDefaultWidth(TransferListModel::TR_UPSPEED, 88);
+        setDefaultWidth(TransferListModel::TR_ETA, 72);
+        setDefaultWidth(TransferListModel::TR_RATIO, 100);
+        setColumnHidden(TransferListModel::TR_CATEGORY, true);
+        setColumnHidden(TransferListModel::TR_TAGS, true);
+        setColumnHidden(TransferListModel::TR_AVAILABILITY, true);
     }
+
+    // Preserve user-saved visibility/order; only enforce defaults on a fresh state.
+    header()->setStretchLastSection(false);
+    if (!columnLoaded)
+        header()->setSectionResizeMode(TransferListModel::TR_NAME, QHeaderView::Stretch);
+
+    // Ratio needs 100px so the header is not elided next to the column chooser.
+    if (!isColumnHidden(TransferListModel::TR_RATIO) && (columnWidth(TransferListModel::TR_RATIO) < 96))
+        setColumnWidth(TransferListModel::TR_RATIO, 100);
 
     //Ensure that at least one column is visible at all times
     bool atLeastOne = false;
@@ -240,6 +476,79 @@ TransferListWidget::~TransferListWidget()
 TransferListModel *TransferListWidget::getSourceModel() const
 {
     return m_listModel;
+}
+
+bool TransferListWidget::eventFilter(QObject *obj, QEvent *event)
+{
+    if ((obj == viewport()) && m_compactMode)
+    {
+        if (event->type() == QEvent::MouseMove)
+        {
+            const auto *me = static_cast<QMouseEvent *>(event);
+            const int row = indexAt(me->pos()).row();
+            if (row != m_hoverFadeRow)
+            {
+                if (m_hoverFadeRow >= 0)
+                    TransferListDelegate::setHoverFade(m_hoverFadeRow, 0);
+                m_hoverFadeRow = row;
+                m_hoverFadeTarget = (row >= 0) ? 1.0 : 0.0;
+                if (!m_hoverFadeTimer.isActive())
+                {
+                    m_hoverFadeTimer.setInterval(16);
+                    connect(&m_hoverFadeTimer, &QTimer::timeout, this, [this]()
+                    {
+                        const qreal step = static_cast<qreal>(m_hoverFadeTimer.interval()) / 120.0;
+                        if (m_hoverFadeAlpha < m_hoverFadeTarget)
+                            m_hoverFadeAlpha = qMin(m_hoverFadeTarget, m_hoverFadeAlpha + step);
+                        else
+                            m_hoverFadeAlpha = qMax(m_hoverFadeTarget, m_hoverFadeAlpha - step);
+                        if (m_hoverFadeRow >= 0)
+                            TransferListDelegate::setHoverFade(m_hoverFadeRow, m_hoverFadeAlpha);
+                        viewport()->update();
+                        if (m_hoverFadeAlpha == m_hoverFadeTarget)
+                            m_hoverFadeTimer.stop();
+                    });
+                    m_hoverFadeTimer.start();
+                }
+            }
+        }
+        else if (event->type() == QEvent::Leave)
+        {
+            m_hoverFadeTarget = 0;
+            if (!m_hoverFadeTimer.isActive())
+                m_hoverFadeTimer.start();
+        }
+    }
+    return QTreeView::eventFilter(obj, event);
+}
+
+void TransferListWidget::setCompactMode(bool enabled)
+{
+    if (m_compactMode == enabled)
+        return;
+
+    m_compactMode = enabled;
+    TransferListDelegate::setCompactMode(enabled);
+    setHeaderHidden(enabled);
+
+    if (enabled)
+    {
+        m_preCompactHiddenColumns.clear();
+        for (int column = 0; column < model()->columnCount(); ++column)
+            m_preCompactHiddenColumns.append(isColumnHidden(column));
+        for (int column = 0; column < model()->columnCount(); ++column)
+            setColumnHidden(column, column != TransferListModel::TR_NAME);
+    }
+    else
+    {
+        for (int column = 0; column < m_preCompactHiddenColumns.size(); ++column)
+            setColumnHidden(column, m_preCompactHiddenColumns.at(column));
+        m_preCompactHiddenColumns.clear();
+    }
+
+    header()->setSectionResizeMode(TransferListModel::TR_NAME, QHeaderView::Stretch);
+    scheduleDelayedItemsLayout();
+    viewport()->update();
 }
 
 void TransferListWidget::previewFile(const Path &filePath)
@@ -1404,18 +1713,27 @@ void TransferListWidget::applyStatusFilter(const int filterIndex)
 
 void TransferListWidget::saveSettings()
 {
-    Preferences::instance()->setTransHeaderState(header()->saveState());
+    SettingsStorage::instance()->storeValue(u"TransferList/HeaderStateV5"_s, header()->saveState());
 }
 
 bool TransferListWidget::loadSettings()
 {
-    return header()->restoreState(Preferences::instance()->getTransHeaderState());
+    // Versioned key: ignore header state saved by older builds (V2/V3/V4)
+    // so the design's default ten-column layout is applied exactly once.
+    const QByteArray state = SettingsStorage::instance()->loadValue(u"TransferList/HeaderStateV5"_s, QByteArray {});
+    if (state.isEmpty())
+        return false;
+    return header()->restoreState(state);
 }
 
 void TransferListWidget::dragEnterEvent(QDragEnterEvent *event)
 {
     if (const QMimeData *data = event->mimeData(); data->hasText() || data->hasUrls())
     {
+        m_dropActive = true;
+        m_dropOverlay->setGeometry(viewport()->rect());
+        m_dropOverlay->raise();
+        m_dropOverlay->setVisible(true);
         event->setDropAction(Qt::CopyAction);
         event->accept();
     }
@@ -1426,8 +1744,78 @@ void TransferListWidget::dragMoveEvent(QDragMoveEvent *event)
     event->acceptProposedAction();  // required, otherwise we won't get `dropEvent`
 }
 
+void TransferListWidget::dragLeaveEvent(QDragLeaveEvent *event)
+{
+    m_dropActive = false;
+    if (m_dropOverlay)
+        m_dropOverlay->setVisible(false);
+    QTreeView::dragLeaveEvent(event);
+}
+
+void TransferListWidget::mouseMoveEvent(QMouseEvent *event)
+{
+    QTreeView::mouseMoveEvent(event);
+    viewport()->update();  // refresh hover row highlight
+}
+
+void TransferListWidget::drawRow(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    const auto mode = ThemeTokens::currentMode();
+    const int row = index.row();
+    const bool selected = option.state.testFlag(QStyle::State_Selected);
+    const QModelIndex hovered = indexAt(viewport()->mapFromGlobal(QCursor::pos()));
+    const bool hoveredRow = hovered.isValid() && (hovered.row() == row);
+    const bool currentRow = (index == currentIndex());
+    const bool keyboardFocus = hasFocus() || viewport()->hasFocus();
+
+    // Contiguous selected rows merge into a single rounded shape.
+    const auto rowIsSelected = [this](const int r)
+    {
+        return selectionModel() && selectionModel()->isSelected(model()->index(r, 0));
+    };
+    const bool roundTop = !rowIsSelected(row - 1);
+    const bool roundBottom = !rowIsSelected(row + 1);
+
+    const QRectF shape = QRectF(option.rect).adjusted(6, 0, -6, 0);
+    QPainterPath path;
+    addMergedRowShape(path, shape, 7, roundTop, roundBottom);
+
+    // Paint our highlight BEHIND the row content.
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    if (selected || hoveredRow)
+    {
+        const QColor fill = ThemeTokens::color(selected
+            ? ThemeTokens::Token::Selected : ThemeTokens::Token::Hover, mode);
+        painter->setPen(Qt::NoPen);
+        painter->fillPath(path, fill);
+    }
+    if (selected && currentRow && keyboardFocus)
+    {
+        // 1px inner ring of accent at 40% opacity.
+        QColor accent = ThemeTokens::color(ThemeTokens::Token::Accent, mode);
+        accent.setAlphaF(0.40);
+        QPen ring {accent};
+        ring.setWidthF(1);
+        QPainterPath innerPath;
+        addMergedRowShape(innerPath, shape.adjusted(0.5, 0.5, -0.5, -0.5), 7, roundTop, roundBottom);
+        painter->setPen(ring);
+        painter->setBrush(Qt::NoBrush);
+        painter->drawPath(innerPath);
+    }
+    painter->restore();
+
+    // Let Fusion lay out the delegates but never paint its own selection fill.
+    QStyleOptionViewItem rowOption {option};
+    rowOption.state &= ~QStyle::State_Selected;
+    QTreeView::drawRow(painter, rowOption, index);
+}
+
 void TransferListWidget::dropEvent(QDropEvent *event)
 {
+    m_dropActive = false;
+    if (m_dropOverlay)
+        m_dropOverlay->setVisible(false);
     event->acceptProposedAction();
 
     QStringList files;
@@ -1577,4 +1965,40 @@ void TransferListWidget::openPreviewSelectDialog(const BitTorrent::Torrent *torr
             dialog->accept();
     });
     dialog->show();
+}
+
+void TransferListWidget::resizeEvent(QResizeEvent *event)
+{
+    QTreeView::resizeEvent(event);
+    if (m_columnChooser)
+        m_columnChooser->move(header()->width() - 28, 0);
+    if (m_dropOverlay)
+        m_dropOverlay->setGeometry(viewport()->rect());
+    updateEmptyState();
+}
+
+void TransferListWidget::clearEmptyStateFilter()
+{
+    m_sortFilterModel->setFilterRegularExpression(QRegularExpression());
+    applyStatusFilter(0);  // All
+}
+
+void TransferListWidget::updateEmptyState()
+{
+    const bool sourceEmpty = (m_listModel->rowCount() == 0);
+    const bool filteredEmpty = (m_sortFilterModel->rowCount() == 0);
+    const bool showEmpty = (sourceEmpty || filteredEmpty);
+
+    if (m_emptyState)
+    {
+        m_emptyState->setVisible(showEmpty);
+        if (showEmpty)
+        {
+            m_emptyState->setGeometry(viewport()->rect());
+            m_emptyState->setFilterMode(!sourceEmpty && filteredEmpty);
+        }
+    }
+    if (m_dropOverlay && m_dropActive)
+        m_dropOverlay->raise();
+    setHorizontalScrollBarPolicy(showEmpty ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
 }

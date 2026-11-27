@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>779</width>
-    <height>591</height>
+    <width>900</width>
+    <height>840</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -160,7 +160,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QComboBox" name="comboLanguage"/>
+                  <widget class="QComboBox" name="comboLanguage" />
                  </item>
                  <item>
                   <spacer name="spacerLanguage">
@@ -187,7 +187,7 @@
                   </widget>
                  </item>
                  <item row="0" column="1">
-                  <widget class="QComboBox" name="comboStyle"/>
+                  <widget class="QComboBox" name="comboStyle" />
                  </item>
                  <item row="0" column="2">
                   <widget class="QLabel" name="labelStyleHint">
@@ -206,7 +206,7 @@
                   </widget>
                  </item>
                  <item row="1" column="1">
-                  <widget class="QComboBox" name="comboColorScheme"/>
+                  <widget class="QComboBox" name="comboColorScheme" />
                  </item>
                  <item row="1" column="2">
                   <spacer name="spacerColorScheme">
@@ -240,13 +240,13 @@
                    </widget>
                   </item>
                   <item>
-                   <widget class="FileSystemPathLineEdit" name="customThemeFilePath" native="true"/>
+                   <widget class="FileSystemPathLineEdit" name="customThemeFilePath" native="true" />
                   </item>
                  </layout>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkUseSystemIcon">
+                <widget class="ToggleSwitch" name="checkUseSystemIcon">
                  <property name="text">
                   <string>Use icons from system theme</string>
                  </property>
@@ -275,7 +275,7 @@
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_4">
                <item>
-                <widget class="QCheckBox" name="confirmDeletion">
+                <widget class="ToggleSwitch" name="confirmDeletion">
                  <property name="toolTip">
                   <string>Shows a confirmation dialog upon torrent deletion</string>
                  </property>
@@ -288,7 +288,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkAltRowColors">
+                <widget class="ToggleSwitch" name="checkAltRowColors">
                  <property name="text">
                   <string extracomment="In table elements, every other row will have a grey background.">Use alternating row colors</string>
                  </property>
@@ -298,7 +298,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkUseTorrentStatesColors">
+                <widget class="ToggleSwitch" name="checkUseTorrentStatesColors">
                  <property name="text">
                   <string>Use different text colors by torrent states</string>
                  </property>
@@ -308,7 +308,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkProgressBarFollowsTextColor">
+                <widget class="ToggleSwitch" name="checkProgressBarFollowsTextColor">
                  <property name="text">
                   <string extracomment="Progress bar color is based on text color.">Make progress bars follow text colors</string>
                  </property>
@@ -317,7 +317,7 @@
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout">
                  <item>
-                  <widget class="QCheckBox" name="checkHideZero">
+                  <widget class="ToggleSwitch" name="checkHideZero">
                    <property name="text">
                     <string>Hide zero and infinity values</string>
                    </property>
@@ -450,19 +450,19 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkBoxHideZeroStatusFilters">
+                <widget class="ToggleSwitch" name="checkBoxHideZeroStatusFilters">
                  <property name="text">
                   <string>Auto hide zero status filters</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkBoxUseSeparateTrackerStatusFilter">
+                <widget class="ToggleSwitch" name="checkBoxUseSeparateTrackerStatusFilter">
                  <property name="toolTip">
-                  <string>Use separate &quot;Tracker status&quot; filter. Otherwise it gets merged with &quot;Trackers&quot; filter.</string>
+                  <string>Use separate "Tracker status" filter. Otherwise it gets merged with "Trackers" filter.</string>
                  </property>
                  <property name="text">
-                  <string>Use separate &quot;Tracker status&quot; filter</string>
+                  <string>Use separate "Tracker status" filter</string>
                  </property>
                 </widget>
                </item>
@@ -476,7 +476,7 @@
               </property>
               <layout class="QVBoxLayout" name="layoutTorrentContent">
                <item>
-                <widget class="QCheckBox" name="checkTorrentContentDrag">
+                <widget class="ToggleSwitch" name="checkTorrentContentDrag">
                  <property name="toolTip">
                   <string>Replaces multi-selection (hold Alt key to invert)</string>
                  </property>
@@ -495,14 +495,14 @@
               </property>
               <layout class="QVBoxLayout" name="statusBarGroupLayout">
                <item>
-                <widget class="QCheckBox" name="checkBoxFreeDiskSpaceStatusBar">
+                <widget class="ToggleSwitch" name="checkBoxFreeDiskSpaceStatusBar">
                  <property name="text">
                   <string>Show free disk space</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkBoxExternalIPStatusBar">
+                <widget class="ToggleSwitch" name="checkBoxExternalIPStatusBar">
                  <property name="text">
                   <string>Show external IP</string>
                  </property>
@@ -518,14 +518,14 @@
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_12">
                <item>
-                <widget class="QCheckBox" name="checkStartup">
+                <widget class="ToggleSwitch" name="checkStartup">
                  <property name="text">
                   <string>Start qBittorrent on Windows start up</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkShowSplash">
+                <widget class="ToggleSwitch" name="checkShowSplash">
                  <property name="text">
                   <string>Show splash screen on start up</string>
                  </property>
@@ -566,7 +566,7 @@
                 </layout>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkProgramExitConfirm">
+                <widget class="ToggleSwitch" name="checkProgramExitConfirm">
                  <property name="toolTip">
                   <string>Shows a confirmation dialog when exiting with active torrents</string>
                  </property>
@@ -579,7 +579,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkProgramAutoExitConfirm">
+                <widget class="ToggleSwitch" name="checkProgramAutoExitConfirm">
                  <property name="text">
                   <string>Confirmation on auto-exit when downloads finish</string>
                  </property>
@@ -598,7 +598,7 @@
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_22">
                   <item>
-                   <widget class="QCheckBox" name="checkMinimizeToSysTray">
+                   <widget class="ToggleSwitch" name="checkMinimizeToSysTray">
                     <property name="toolTip">
                      <string>When minimizing, the main window is closed and must be reopened from the systray icon</string>
                     </property>
@@ -611,7 +611,7 @@
                    </widget>
                   </item>
                   <item>
-                   <widget class="QCheckBox" name="checkCloseToSystray">
+                   <widget class="ToggleSwitch" name="checkCloseToSystray">
                     <property name="toolTip">
                      <string>The systray icon will still be visible when closing the main window</string>
                     </property>
@@ -683,14 +683,14 @@
                       <number>0</number>
                      </property>
                      <item>
-                      <widget class="QCheckBox" name="checkAssociateTorrents">
+                      <widget class="ToggleSwitch" name="checkAssociateTorrents">
                        <property name="text">
                         <string>Use qBittorrent for .torrent files</string>
                        </property>
                       </widget>
                      </item>
                      <item>
-                      <widget class="QCheckBox" name="checkAssociateMagnetLinks">
+                      <widget class="ToggleSwitch" name="checkAssociateMagnetLinks">
                        <property name="text">
                         <string>Use qBittorrent for magnet links</string>
                        </property>
@@ -744,21 +744,21 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkProgramUpdates">
+                <widget class="ToggleSwitch" name="checkProgramUpdates">
                  <property name="text">
                   <string>Check for program updates</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkShowSpeedInDock">
+                <widget class="ToggleSwitch" name="checkShowSpeedInDock">
                  <property name="text">
                   <string>Show speed in Dock</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkShowMenuBarIcon">
+                <widget class="ToggleSwitch" name="checkShowMenuBarIcon">
                  <property name="text">
                   <string>Show qBittorrent in menu bar</string>
                  </property>
@@ -774,14 +774,14 @@
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_16">
                <item>
-                <widget class="QCheckBox" name="checkPreventFromSuspendWhenDownloading">
+                <widget class="ToggleSwitch" name="checkPreventFromSuspendWhenDownloading">
                  <property name="text">
                   <string>Inhibit system sleep when torrents are downloading</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkPreventFromSuspendWhenSeeding">
+                <widget class="ToggleSwitch" name="checkPreventFromSuspendWhenSeeding">
                  <property name="text">
                   <string>Inhibit system sleep when torrents are seeding</string>
                  </property>
@@ -818,14 +818,14 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="FileSystemPathLineEdit" name="textFileLogPath" native="true"/>
+                  <widget class="FileSystemPathLineEdit" name="textFileLogPath" native="true" />
                  </item>
                 </layout>
                </item>
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_8">
                  <item>
-                  <widget class="QCheckBox" name="checkFileLogBackup">
+                  <widget class="ToggleSwitch" name="checkFileLogBackup">
                    <property name="toolTip">
                     <string>Creates an additional log file after the log file reaches the specified file size</string>
                    </property>
@@ -868,7 +868,7 @@
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_9">
                  <item>
-                  <widget class="QCheckBox" name="checkFileLogDelete">
+                  <widget class="ToggleSwitch" name="checkFileLogDelete">
                    <property name="text">
                     <string>Delete backup logs older than:</string>
                    </property>
@@ -928,7 +928,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="checkBoxPerformanceWarning">
+             <widget class="ToggleSwitch" name="checkBoxPerformanceWarning">
               <property name="text">
                <string>Log performance warnings</string>
               </property>
@@ -965,10 +965,16 @@
          <number>0</number>
         </property>
         <property name="bottomMargin">
-         <number>0</number>
+         <number>8</number>
         </property>
         <item>
          <widget class="QScrollArea" name="scrollArea_2">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="widgetResizable">
            <bool>true</bool>
           </property>
@@ -982,6 +988,18 @@
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout">
+            <property name="leftMargin">
+             <number>14</number>
+            </property>
+            <property name="topMargin">
+             <number>12</number>
+            </property>
+            <property name="rightMargin">
+             <number>14</number>
+            </property>
+            <property name="bottomMargin">
+             <number>36</number>
+            </property>
             <item>
              <widget class="QGroupBox" name="torrentAdditionBox">
               <property name="title">
@@ -998,7 +1016,7 @@
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_18">
                   <item>
-                   <widget class="QCheckBox" name="checkAdditionDialogFront">
+                   <widget class="ToggleSwitch" name="checkAdditionDialogFront">
                     <property name="text">
                      <string>Bring torrent dialog to the front</string>
                     </property>
@@ -1057,7 +1075,7 @@
                 </layout>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkAddToQueueTop">
+                <widget class="ToggleSwitch" name="checkAddToQueueTop">
                  <property name="toolTip">
                   <string>The torrent will be added to the top of the download queue</string>
                  </property>
@@ -1067,7 +1085,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkAddStopped">
+                <widget class="ToggleSwitch" name="checkAddStopped">
                  <property name="toolTip">
                   <string>The torrent will be added to download list in a stopped state</string>
                  </property>
@@ -1129,7 +1147,7 @@
                  </property>
                  <layout class="QVBoxLayout" name="duplicateTorrentBoxLayout">
                   <item>
-                   <widget class="QCheckBox" name="checkMergeTrackers">
+                   <widget class="ToggleSwitch" name="checkMergeTrackers">
                     <property name="text">
                      <string>Merge trackers to existing torrent</string>
                     </property>
@@ -1139,7 +1157,7 @@
                    </widget>
                   </item>
                   <item>
-                   <widget class="QCheckBox" name="checkConfirmMergeTrackers">
+                   <widget class="ToggleSwitch" name="checkConfirmMergeTrackers">
                     <property name="text">
                      <string>Ask to merge trackers for manually added torrent</string>
                     </property>
@@ -1158,27 +1176,27 @@
                  </property>
                  <layout class="QGridLayout" name="backupTorrentFileLayout">
                   <item row="0" column="0">
-                   <widget class="QCheckBox" name="backupDirCheckBox">
+                   <widget class="ToggleSwitch" name="backupDirCheckBox">
                     <property name="text">
                      <string>Store backup in:</string>
                     </property>
                    </widget>
                   </item>
                   <item row="0" column="1">
-                   <widget class="FileSystemPathLineEdit" name="backupDirPathEdit" native="true"/>
+                   <widget class="FileSystemPathLineEdit" name="backupDirPathEdit" native="true" />
                   </item>
                   <item row="1" column="0">
-                   <widget class="QCheckBox" name="finishedBackupDirCheckBox">
+                   <widget class="ToggleSwitch" name="finishedBackupDirCheckBox">
                     <property name="text">
                      <string>When torrent finished move backup to:</string>
                     </property>
                    </widget>
                   </item>
                   <item row="1" column="1">
-                   <widget class="FileSystemPathLineEdit" name="finishedBackupDirPathEdit" native="true"/>
+                   <widget class="FileSystemPathLineEdit" name="finishedBackupDirPathEdit" native="true" />
                   </item>
                   <item row="2" column="0" colspan="2">
-                   <widget class="QCheckBox" name="removeBackupTorrentFileCheckBox">
+                   <widget class="ToggleSwitch" name="removeBackupTorrentFileCheckBox">
                     <property name="text">
                      <string>Remove backup when removing torrent</string>
                     </property>
@@ -1203,7 +1221,7 @@
                  </property>
                  <layout class="QVBoxLayout" name="deleteTorrentBoxLayout">
                   <item>
-                   <widget class="QCheckBox" name="deleteCancelledTorrentBox">
+                   <widget class="ToggleSwitch" name="deleteCancelledTorrentBox">
                     <property name="toolTip">
                      <string>Also delete .torrent files whose addition was cancelled</string>
                     </property>
@@ -1243,7 +1261,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="checkPreallocateAll">
+             <widget class="ToggleSwitch" name="checkPreallocateAll">
               <property name="toolTip">
                <string>Allocate full file sizes on disk before starting downloads, to minimize fragmentation. Only useful for HDDs.</string>
               </property>
@@ -1253,21 +1271,37 @@
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="checkAppendqB">
+             <widget class="ToggleSwitch" name="checkAppendqB">
               <property name="text">
                <string>Append .!qB extension to incomplete files</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="checkUnwantedFolder">
+             <spacer name="verticalSpacerDownloadsGutter">
+              <property name="orientation">
+               <enum>Qt::Orientation::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>48</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="ToggleSwitch" name="checkUnwantedFolder">
               <property name="text">
-               <string>Keep unselected files in &quot;.unwanted&quot; folder</string>
+               <string>Keep unselected files in ".unwanted" folder</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QCheckBox" name="checkRecursiveDownload">
+             <widget class="ToggleSwitch" name="checkRecursiveDownload">
               <property name="toolTip">
                <string>When a torrent is downloaded, offer to add torrents from any .torrent files found inside it</string>
               </property>
@@ -1452,7 +1486,7 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
                 </layout>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkUseCategoryPaths">
+                <widget class="ToggleSwitch" name="checkUseCategoryPaths">
                  <property name="toolTip">
                   <string>Resolve relative Save Path against appropriate Category path instead of Default one</string>
                  </property>
@@ -1471,17 +1505,17 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
                   </widget>
                  </item>
                  <item row="0" column="1">
-                  <widget class="FileSystemPathLineEdit" name="textSavePath" native="true"/>
+                  <widget class="FileSystemPathLineEdit" name="textSavePath" native="true" />
                  </item>
                  <item row="1" column="0">
-                  <widget class="QCheckBox" name="checkUseDownloadPath">
+                  <widget class="ToggleSwitch" name="checkUseDownloadPath">
                    <property name="text">
                     <string>Use another path for incomplete torrents:</string>
                    </property>
                   </widget>
                  </item>
                  <item row="1" column="1">
-                  <widget class="FileSystemPathLineEdit" name="textDownloadPath" native="true"/>
+                  <widget class="FileSystemPathLineEdit" name="textDownloadPath" native="true" />
                  </item>
                 </layout>
                </item>
@@ -1598,7 +1632,7 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
                 <widget class="QPlainTextEdit" name="textExcludedFileNames">
                  <property name="toolTip">
                   <string>Blacklist filtered file names from being downloaded from torrent(s).
-Files matching any of the filters in this list will have their priority automatically set to &quot;Do not download&quot;.
+Files matching any of the filters in this list will have their priority automatically set to "Do not download".
 
 Use newlines to separate multiple entries. Can use wildcards as outlined below.
 *: matches zero or more of any characters.
@@ -1620,9 +1654,9 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkExcludeFilesWithoutExtension">
+                <widget class="ToggleSwitch" name="checkExcludeFilesWithoutExtension">
                  <property name="toolTip">
-                  <string>Files whose name has no extension (e.g. 'readme', 'setup.') will have their priority automatically set to &quot;Do not download&quot;.</string>
+                  <string>Files whose name has no extension (e.g. 'readme', 'setup.') will have their priority automatically set to "Do not download".</string>
                  </property>
                  <property name="text">
                   <string>Exclude files without an extension</string>
@@ -1674,7 +1708,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                   </widget>
                  </item>
                  <item row="1" column="1">
-                  <widget class="QLineEdit" name="lineEditDestEmail"/>
+                  <widget class="QLineEdit" name="lineEditDestEmail" />
                  </item>
                  <item row="2" column="0">
                   <widget class="QLabel" name="label_3">
@@ -1700,7 +1734,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                  <item row="3" column="1">
                   <layout class="QHBoxLayout" name="layoutSMTPEncryption">
                    <item>
-                    <widget class="QComboBox" name="comboSMTPEncryption"/>
+                    <widget class="QComboBox" name="comboSMTPEncryption" />
                    </item>
                    <item>
                     <widget class="QLabel" name="labelSMTPEncryptionPortInfo">
@@ -1746,7 +1780,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                    </widget>
                   </item>
                   <item row="0" column="1">
-                   <widget class="QLineEdit" name="mailNotifUsername"/>
+                   <widget class="QLineEdit" name="mailNotifUsername" />
                   </item>
                   <item row="1" column="0">
                    <widget class="QLabel" name="label_8">
@@ -1800,7 +1834,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_39">
                   <item>
-                   <widget class="QLineEdit" name="lineEditRunOnAdded"/>
+                   <widget class="QLineEdit" name="lineEditRunOnAdded" />
                   </item>
                  </layout>
                 </widget>
@@ -1818,13 +1852,13 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_36">
                   <item>
-                   <widget class="QLineEdit" name="lineEditRunOnFinished"/>
+                   <widget class="QLineEdit" name="lineEditRunOnFinished" />
                   </item>
                  </layout>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="autoRunConsole">
+                <widget class="ToggleSwitch" name="autoRunConsole">
                  <property name="text">
                   <string>Show console window</string>
                  </property>
@@ -1839,6 +1873,22 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                </item>
               </layout>
              </widget>
+            </item>
+            <item>
+             <spacer name="downloadsBottomSpacer">
+              <property name="orientation">
+               <enum>Qt::Orientation::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Policy::Minimum</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>18</height>
+               </size>
+              </property>
+             </spacer>
             </item>
            </layout>
           </widget>
@@ -1969,7 +2019,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </layout>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkUPnP">
+                <widget class="ToggleSwitch" name="checkUPnP">
                  <property name="text">
                   <string>Use UPnP / NAT-PMP port forwarding from my router</string>
                  </property>
@@ -1988,7 +2038,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
               </property>
               <layout class="QGridLayout" name="gridLayout">
                <item row="0" column="0">
-                <widget class="QCheckBox" name="checkMaxConnections">
+                <widget class="ToggleSwitch" name="checkMaxConnections">
                  <property name="text">
                   <string>Global maximum number of connections:</string>
                  </property>
@@ -2027,7 +2077,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </spacer>
                </item>
                <item row="1" column="0">
-                <widget class="QCheckBox" name="checkMaxConnectionsPerTorrent">
+                <widget class="ToggleSwitch" name="checkMaxConnectionsPerTorrent">
                  <property name="text">
                   <string>Maximum number of connections per torrent:</string>
                  </property>
@@ -2050,7 +2100,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item row="2" column="0">
-                <widget class="QCheckBox" name="checkMaxUploads">
+                <widget class="ToggleSwitch" name="checkMaxUploads">
                  <property name="text">
                   <string>Global maximum number of upload slots:</string>
                  </property>
@@ -2067,7 +2117,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item row="3" column="0">
-                <widget class="QCheckBox" name="checkMaxUploadsPerTorrent">
+                <widget class="ToggleSwitch" name="checkMaxUploadsPerTorrent">
                  <property name="text">
                   <string>Maximum number of upload slots per torrent:</string>
                  </property>
@@ -2108,7 +2158,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="textI2PHost"/>
+                  <widget class="QLineEdit" name="textI2PHost" />
                  </item>
                  <item>
                   <widget class="QLabel" name="labelI2PPort">
@@ -2146,9 +2196,9 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </layout>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkI2PMixed">
+                <widget class="ToggleSwitch" name="checkI2PMixed">
                  <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If &quot;mixed mode&quot; is enabled I2P torrents are allowed to also get peers from other sources than the tracker, and connect to regular IPs, not providing any anonymization. This may be useful if the user is not interested in the anonymization of I2P, but still wants to be able to connect to I2P peers.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If "mixed mode" is enabled I2P torrents are allowed to also get peers from other sources than the tracker, and connect to regular IPs, not providing any anonymization. This may be useful if the user is not interested in the anonymization of I2P, but still wants to be able to connect to I2P peers.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                  </property>
                  <property name="text">
                   <string>Mixed mode</string>
@@ -2156,7 +2206,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkI2PPeX">
+                <widget class="ToggleSwitch" name="checkI2PPeX">
                  <property name="text">
                   <string>Enable I2P Peer Exchange (I2P PeX) to find more peers (requires restart)</string>
                  </property>
@@ -2184,7 +2234,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                   </widget>
                  </item>
                  <item>
-                  <widget class="QComboBox" name="comboProxyType"/>
+                  <widget class="QComboBox" name="comboProxyType" />
                  </item>
                  <item>
                   <widget class="QLabel" name="lblProxyIP">
@@ -2194,7 +2244,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="textProxyIP"/>
+                  <widget class="QLineEdit" name="textProxyIP" />
                  </item>
                  <item>
                   <widget class="QLabel" name="lblProxyPort">
@@ -2244,7 +2294,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkProxyHostnameLookup">
+                <widget class="ToggleSwitch" name="checkProxyHostnameLookup">
                  <property name="toolTip">
                   <string>If checked, hostname lookups are done via the proxy</string>
                  </property>
@@ -2278,7 +2328,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                      </widget>
                     </item>
                     <item row="0" column="1">
-                     <widget class="QLineEdit" name="textProxyUsername"/>
+                     <widget class="QLineEdit" name="textProxyUsername" />
                     </item>
                     <item row="1" column="0">
                      <widget class="QLabel" name="lblProxyPassword">
@@ -2319,7 +2369,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayoutProxyBitTorrent">
                   <item>
-                   <widget class="QCheckBox" name="checkProxyPeerConnections">
+                   <widget class="ToggleSwitch" name="checkProxyPeerConnections">
                     <property name="toolTip">
                      <string>Otherwise, the proxy server is only used for tracker connections</string>
                     </property>
@@ -2332,7 +2382,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkProxyRSS">
+                <widget class="ToggleSwitch" name="checkProxyRSS">
                  <property name="toolTip">
                   <string>RSS feeds will use proxy</string>
                  </property>
@@ -2345,7 +2395,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkProxyMisc">
+                <widget class="ToggleSwitch" name="checkProxyMisc">
                  <property name="toolTip">
                   <string>Search engine, software updates or anything else will use proxy</string>
                  </property>
@@ -2369,14 +2419,14 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_11">
                  <item>
-                  <widget class="QCheckBox" name="checkIPFilter">
+                  <widget class="ToggleSwitch" name="checkIPFilter">
                    <property name="text">
                     <string>Filter path (.dat, .p2p, .p2b):</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="FileSystemPathLineEdit" name="textFilterPath" native="true"/>
+                  <widget class="FileSystemPathLineEdit" name="textFilterPath" native="true" />
                  </item>
                  <item>
                   <widget class="QToolButton" name="IpFilterRefreshBtn">
@@ -2401,7 +2451,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkIpFilterTrackers">
+                <widget class="ToggleSwitch" name="checkIpFilterTrackers">
                  <property name="text">
                   <string>Apply to trackers</string>
                  </property>
@@ -2465,7 +2515,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
               </property>
               <layout class="QGridLayout" name="rateLimitBoxLayout">
                <item row="0" column="0" rowspan="2">
-                <widget class="QLabel" name="labelGlobalRate"/>
+                <widget class="QLabel" name="labelGlobalRate" />
                </item>
                <item row="0" column="1">
                 <widget class="QLabel" name="label_10">
@@ -2542,7 +2592,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
               </property>
               <layout class="QGridLayout" name="gridLayout_6">
                <item row="0" column="0" rowspan="2">
-                <widget class="QLabel" name="labelAltRate"/>
+                <widget class="QLabel" name="labelAltRate" />
                </item>
                <item row="0" column="1">
                 <widget class="QLabel" name="label_13">
@@ -2736,21 +2786,21 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_30">
                <item>
-                <widget class="QCheckBox" name="checkLimituTPConnections">
+                <widget class="ToggleSwitch" name="checkLimituTPConnections">
                  <property name="text">
                   <string>Apply rate limit to µTP protocol</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkLimitTransportOverhead">
+                <widget class="ToggleSwitch" name="checkLimitTransportOverhead">
                  <property name="text">
                   <string>Apply rate limit to transport overhead</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkLimitLocalPeerRate">
+                <widget class="ToggleSwitch" name="checkLimitLocalPeerRate">
                  <property name="text">
                   <string>Apply rate limit to peers on LAN</string>
                  </property>
@@ -2814,7 +2864,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_14">
                <item>
-                <widget class="QCheckBox" name="checkDHT">
+                <widget class="ToggleSwitch" name="checkDHT">
                  <property name="toolTip">
                   <string>Find peers on the DHT network</string>
                  </property>
@@ -2827,7 +2877,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkPeX">
+                <widget class="ToggleSwitch" name="checkPeX">
                  <property name="toolTip">
                   <string>Exchange peers with compatible Bittorrent clients (µTorrent, Vuze, ...)</string>
                  </property>
@@ -2840,7 +2890,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkLSD">
+                <widget class="ToggleSwitch" name="checkLSD">
                  <property name="toolTip">
                   <string>Look for peers on your local network</string>
                  </property>
@@ -2903,7 +2953,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_6">
                  <item>
-                  <widget class="QCheckBox" name="checkAnonymousMode">
+                  <widget class="ToggleSwitch" name="checkAnonymousMode">
                    <property name="toolTip">
                     <string>Enable when using a proxy or a VPN connection</string>
                    </property>
@@ -2915,7 +2965,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                  <item>
                   <widget class="QLabel" name="label_anonymous">
                    <property name="text">
-                    <string>(&lt;a href=&quot;https://github.com/qbittorrent/qBittorrent/wiki/Anonymous-Mode&quot;&gt;More information&lt;/a&gt;)</string>
+                    <string>(&lt;a href="https://github.com/qbittorrent/qBittorrent/wiki/Anonymous-Mode"&gt;More information&lt;/a&gt;)</string>
                    </property>
                    <property name="openExternalLinks">
                     <bool>true</bool>
@@ -3172,7 +3222,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_15">
                <item row="0" column="0">
-                <widget class="QCheckBox" name="checkMaxRatio">
+                <widget class="ToggleSwitch" name="checkMaxRatio">
                  <property name="text">
                   <string>When ratio reaches</string>
                  </property>
@@ -3205,7 +3255,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                 </spacer>
                </item>
                <item row="1" column="0">
-                <widget class="QCheckBox" name="checkMaxSeedingMinutes">
+                <widget class="ToggleSwitch" name="checkMaxSeedingMinutes">
                  <property name="text">
                   <string>When total seeding time reaches</string>
                  </property>
@@ -3228,7 +3278,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                 </widget>
                </item>
                <item row="2" column="0">
-                <widget class="QCheckBox" name="checkMaxInactiveSeedingMinutes">
+                <widget class="ToggleSwitch" name="checkMaxInactiveSeedingMinutes">
                  <property name="text">
                   <string>When inactive seeding time reaches</string>
                  </property>
@@ -3368,7 +3418,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="textTrackersURL"/>
+                  <widget class="QLineEdit" name="textTrackersURL" />
                  </item>
                 </layout>
                </item>
@@ -3456,7 +3506,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                  </property>
                  <layout class="QVBoxLayout" name="groupStoreSearchJobsLayout">
                   <item>
-                   <widget class="QCheckBox" name="checkStoreSearchJobResults">
+                   <widget class="ToggleSwitch" name="checkStoreSearchJobResults">
                     <property name="text">
                      <string>Also store search results</string>
                     </property>
@@ -3497,7 +3547,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                 </layout>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkCloseSearchTabWithMiddleClick">
+                <widget class="ToggleSwitch" name="checkCloseSearchTabWithMiddleClick">
                  <property name="text">
                   <string>Allow closing tabs with middle-click</string>
                  </property>
@@ -3561,7 +3611,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_26">
                <item>
-                <widget class="QCheckBox" name="checkRSSEnable">
+                <widget class="ToggleSwitch" name="checkRSSEnable">
                  <property name="text">
                   <string>Enable fetching RSS feeds</string>
                  </property>
@@ -3654,7 +3704,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_21">
                <item>
-                <widget class="QCheckBox" name="checkRSSAutoDownloaderEnable">
+                <widget class="ToggleSwitch" name="checkRSSAutoDownloaderEnable">
                  <property name="text">
                   <string>Enable auto downloading of RSS torrents</string>
                  </property>
@@ -3677,7 +3727,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_31">
                <item>
-                <widget class="QCheckBox" name="checkSmartFilterDownloadRepacks">
+                <widget class="ToggleSwitch" name="checkSmartFilterDownloadRepacks">
                  <property name="text">
                   <string>Download REPACK/PROPER episodes</string>
                  </property>
@@ -3768,7 +3818,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                   </font>
                  </property>
                  <property name="text">
-                  <string/>
+                  <string />
                  </property>
                 </widget>
                </item>
@@ -3785,8 +3835,8 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                   <widget class="QLineEdit" name="textWebUIAddress">
                    <property name="toolTip">
                     <string>IP address that the Web UI will bind to.
-Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv4 address,
-&quot;::&quot; for any IPv6 address, or &quot;*&quot; for both IPv4 and IPv6.</string>
+Specify an IPv4 or IPv6 address. You can specify "0.0.0.0" for any IPv4 address,
+"::" for any IPv6 address, or "*" for both IPv4 and IPv6.</string>
                    </property>
                   </widget>
                  </item>
@@ -3813,7 +3863,7 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                 </layout>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkWebUIUPnP">
+                <widget class="ToggleSwitch" name="checkWebUIUPnP">
                  <property name="text">
                   <string>Use UPnP / NAT-PMP to forward the port from my router</string>
                  </property>
@@ -3835,7 +3885,7 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                  </property>
                  <layout class="QGridLayout" name="gridLayout_11">
                   <item row="0" column="0">
-                   <widget class="QLabel" name="lblSslCertStatus"/>
+                   <widget class="QLabel" name="lblSslCertStatus" />
                   </item>
                   <item row="0" column="1">
                    <widget class="QLabel" name="lblWebUICrt">
@@ -3845,10 +3895,10 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                    </widget>
                   </item>
                   <item row="0" column="2">
-                   <widget class="FileSystemPathLineEdit" name="textWebUIHttpsCert" native="true"/>
+                   <widget class="FileSystemPathLineEdit" name="textWebUIHttpsCert" native="true" />
                   </item>
                   <item row="1" column="0">
-                   <widget class="QLabel" name="lblSslKeyStatus"/>
+                   <widget class="QLabel" name="lblSslKeyStatus" />
                   </item>
                   <item row="1" column="1">
                    <widget class="QLabel" name="lblWebUIKey">
@@ -3858,7 +3908,7 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                    </widget>
                   </item>
                   <item row="1" column="2">
-                   <widget class="FileSystemPathLineEdit" name="textWebUIHttpsKey" native="true"/>
+                   <widget class="FileSystemPathLineEdit" name="textWebUIHttpsKey" native="true" />
                   </item>
                   <item row="2" column="0" colspan="3">
                    <widget class="QLabel" name="lblWebUICertInfo">
@@ -3896,7 +3946,7 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                       </widget>
                      </item>
                      <item row="0" column="1">
-                      <widget class="QLineEdit" name="textWebUIUsername"/>
+                      <widget class="QLineEdit" name="textWebUIUsername" />
                      </item>
                      <item row="1" column="0">
                       <widget class="QLabel" name="lblWebUIPassword">
@@ -3985,14 +4035,14 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                    </widget>
                   </item>
                   <item>
-                   <widget class="QCheckBox" name="checkBypassLocalAuth">
+                   <widget class="ToggleSwitch" name="checkBypassLocalAuth">
                     <property name="text">
                      <string>Bypass authentication for clients on localhost</string>
                     </property>
                    </widget>
                   </item>
                   <item>
-                   <widget class="QCheckBox" name="checkBypassAuthSubnetWhitelist">
+                   <widget class="ToggleSwitch" name="checkBypassAuthSubnetWhitelist">
                     <property name="text">
                      <string>Bypass authentication for clients in whitelisted IP subnets</string>
                     </property>
@@ -4164,14 +4214,14 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                      </widget>
                     </item>
                     <item>
-                     <widget class="FileSystemPathLineEdit" name="textWebUIRootFolder" native="true"/>
+                     <widget class="FileSystemPathLineEdit" name="textWebUIRootFolder" native="true" />
                     </item>
                    </layout>
                   </item>
                   <item>
                    <widget class="QLabel" name="lblAltWebUIList">
                     <property name="text">
-                     <string>&lt;a href=&quot;https://github.com/qbittorrent/qBittorrent/wiki/List-of-known-alternate-WebUIs&quot;&gt;List of alternative WebUI&lt;/a&gt;</string>
+                     <string>&lt;a href="https://github.com/qbittorrent/qBittorrent/wiki/List-of-known-alternate-WebUIs"&gt;List of alternative WebUI&lt;/a&gt;</string>
                     </property>
                     <property name="openExternalLinks">
                      <bool>true</bool>
@@ -4191,21 +4241,21 @@ Specify an IPv4 or IPv6 address. You can specify &quot;0.0.0.0&quot; for any IPv
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_33">
                   <item>
-                   <widget class="QCheckBox" name="checkClickjacking">
+                   <widget class="ToggleSwitch" name="checkClickjacking">
                     <property name="text">
                      <string>Enable clickjacking protection</string>
                     </property>
                    </widget>
                   </item>
                   <item>
-                   <widget class="QCheckBox" name="checkCSRFProtection">
+                   <widget class="ToggleSwitch" name="checkCSRFProtection">
                     <property name="text">
                      <string>Enable Cross-Site Request Forgery (CSRF) protection</string>
                     </property>
                    </widget>
                   </item>
                   <item>
-                   <widget class="QCheckBox" name="checkSecureCookie">
+                   <widget class="ToggleSwitch" name="checkSecureCookie">
                     <property name="text">
                      <string>Enable cookie Secure flag (requires HTTPS or localhost connection)</string>
                     </property>
@@ -4382,7 +4432,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.</string>
                    </widget>
                   </item>
                   <item row="2" column="1">
-                   <widget class="QLineEdit" name="DNSUsernameTxt"/>
+                   <widget class="QLineEdit" name="DNSUsernameTxt" />
                   </item>
                   <item row="3" column="0">
                    <widget class="QLabel" name="label_22">
@@ -4458,7 +4508,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.</string>
    <header>gui/fspathedit.h</header>
    <container>1</container>
   </customwidget>
- </customwidgets>
- <resources/>
- <connections/>
+ <customwidget><class>ToggleSwitch</class><extends>QCheckBox</extends><header>gui/widgets/toggleswitch.h</header></customwidget></customwidgets>
+ <resources />
+ <connections />
 </ui>

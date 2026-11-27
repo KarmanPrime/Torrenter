@@ -166,8 +166,8 @@ QVariant TransferListModel::headerData(const int section, const Qt::Orientation 
             case TR_STATUS: return tr("Status", "Torrent status (e.g. downloading, seeding, stopped)");
             case TR_SEEDS: return tr("Seeds", "i.e. full sources (often untranslated)");
             case TR_PEERS: return tr("Peers", "i.e. partial sources (often untranslated)");
-            case TR_DLSPEED: return tr("Down Speed", "i.e: Download speed");
-            case TR_UPSPEED: return tr("Up Speed", "i.e: Upload speed");
+            case TR_DLSPEED: return tr("Down", "i.e: Download speed");
+            case TR_UPSPEED: return tr("Up", "i.e: Upload speed");
             case TR_RATIO: return tr("Ratio", "Share ratio");
             case TR_POPULARITY: return tr("Popularity");
             case TR_ETA: return tr("ETA", "i.e: Estimated Time of Arrival / Time left");
@@ -538,6 +538,45 @@ QVariant TransferListModel::internalValue(const BitTorrent::Torrent *torrent, co
     return {};
 }
 
+QString TransferListModel::fileTypeGlyph(const BitTorrent::Torrent *torrent) const
+{
+    if (const auto it = m_fileTypeGlyphCache.constFind(torrent); it != m_fileTypeGlyphCache.constEnd())
+        return *it;
+
+    const PathList paths = torrent->filePaths();
+    QString result;
+    if (paths.size() > 1)
+    {
+        m_fileTypeGlyphCache.insert(torrent, u"folder"_s);
+        return u"folder"_s;   // multi-file torrent
+    }
+
+    QString name = (paths.isEmpty() ? torrent->name() : paths.first().filename());
+    const QString ext = name.section(u'.', -1).toLower();
+
+    if ((ext == u"iso") || (ext == u"img"))
+        result = u"disc-3"_s;
+    else if ((ext == u"exe") || (ext == u"msi") || (ext == u"zip") || (ext == u"dmg"))
+        result = u"package"_s;
+    else if ((ext == u"tar") || (ext == u"xz") || (ext == u"7z") || (ext == u"rar"))
+        result = u"file-archive"_s;
+    else if ((ext == u"mkv") || (ext == u"mp4"))
+        result = u"file-video"_s;
+    else if ((ext == u"mp3") || (ext == u"flac"))
+        result = u"music"_s;
+    else if ((ext == u"gguf") || (ext == u"safetensors") || (ext == u"bin"))
+        result = u"cpu"_s;
+    else if ((ext == u"zim") || (ext == u"sqlite"))
+        result = u"database"_s;
+    else if ((ext == u"txt") || (ext == u"json") || (ext == u"jsonl"))
+        result = u"file-text"_s;
+    else
+        result = u"file"_s;
+
+    m_fileTypeGlyphCache.insert(torrent, result);
+    return result;
+}
+
 QVariant TransferListModel::data(const QModelIndex &index, const int role) const
 {
     if (!index.isValid())
@@ -550,7 +589,9 @@ QVariant TransferListModel::data(const QModelIndex &index, const int role) const
     switch (role)
     {
     case Qt::ForegroundRole:
-        if (m_useTorrentStatesColors)
+        // Only the Status cell carries the state colour; row text stays
+        // in the normal primary/secondary ink (design: 01-main-dark).
+        if (m_useTorrentStatesColors && (index.column() == TR_STATUS))
             return m_stateThemeColors.value(torrent->state());
         break;
     case Qt::DisplayRole:
@@ -559,6 +600,8 @@ QVariant TransferListModel::data(const QModelIndex &index, const int role) const
         return internalValue(torrent, index.column(), false);
     case AdditionalUnderlyingDataRole:
         return internalValue(torrent, index.column(), true);
+    case FileTypeGlyphRole:
+        return fileTypeGlyph(torrent);
     case Qt::DecorationRole:
         if (index.column() == TR_NAME)
             return getIconByState(torrent->state());

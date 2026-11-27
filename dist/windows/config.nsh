@@ -86,16 +86,16 @@ SetCompressorDictSize 64
 !define MUI_FINISHPAGE_RUN_TEXT $(launch_qbt)
 
 ; The name of the installer
-Name "qBittorrent ${QBT_INSTALLER_WINDOWNAME}"
+Name "Torrenter ${QBT_INSTALLER_WINDOWNAME}"
 
 ; The file to write
 OutFile "qbittorrent_${QBT_INSTALLER_FILENAME}_setup.exe"
 
 ;Installer Version Information
-VIAddVersionKey "ProductName" "qBittorrent"
+VIAddVersionKey "ProductName" "Torrenter"
 VIAddVersionKey "CompanyName" "The qBittorrent project"
 VIAddVersionKey "LegalCopyright" "Copyright ©2006-2026 The qBittorrent project"
-VIAddVersionKey "FileDescription" "qBittorrent - A Bittorrent Client"
+VIAddVersionKey "FileDescription" "Torrenter - A BitTorrent Client"
 VIAddVersionKey "FileVersion" "${QBT_VERSION}"
 
 ; VIProductVersion needs a 4 part version.

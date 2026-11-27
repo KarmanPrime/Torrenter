@@ -61,7 +61,7 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
     auto *mainWidget = new QWidget;
     auto *mainWidgetLayout = new QVBoxLayout(mainWidget);
     mainWidgetLayout->setContentsMargins(0, 2, 0, 0);
-    mainWidgetLayout->setSpacing(2);
+    mainWidgetLayout->setSpacing(0);
     mainWidgetLayout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
 
     {

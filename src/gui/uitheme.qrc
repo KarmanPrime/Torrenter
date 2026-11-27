@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/uithemedefault">
+        <file alias="torrenter.qss.in">uitheme/torrenter.qss.in</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file alias="grip-horizontal-line.svg">uitheme/icons/grip-horizontal-line.svg</file>
+    </qresource>
+    <qresource prefix="/licenses">
+        <file alias="LICENSE-lucide.txt">../icons/LICENSE-lucide.txt</file>
+    </qresource>
+</RCC>

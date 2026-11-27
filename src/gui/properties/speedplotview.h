@@ -37,6 +37,9 @@
 #endif
 
 #include <QElapsedTimer>
+#include <QPointF>
+#include <QTimer>
+#include <QVector>
 #include <QGraphicsView>
 #include <QMap>
 
@@ -89,6 +92,10 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void leaveEvent(QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
 
 private:
     struct Sample
@@ -105,6 +112,7 @@ private:
         Averager(milliseconds duration, milliseconds resolution);
 
         bool push(const SampleData &sampleData); // returns true if there is new data to display
+        void seedForQA(const SampleData &sampleData, int count);
 
         const DataCircularBuffer &data() const;
 
@@ -130,6 +138,8 @@ private:
 
     quint64 maxYValue() const;
     const DataCircularBuffer &currentData() const;
+    void updateLerp();
+    void seedQAData();
 
     Averager m_averager5Min {5min, 1s};
     Averager m_averager30Min {30min, 6s};
@@ -140,4 +150,10 @@ private:
 
     QMap<GraphID, GraphProperties> m_properties;
     milliseconds m_currentMaxDuration {0};
+
+    QPointF m_hoverPos;
+    bool m_hovering = false;
+    qreal m_displayMax = 0;
+    QTimer m_lerpTimer;
+    bool m_qaSeeded = false;
 };

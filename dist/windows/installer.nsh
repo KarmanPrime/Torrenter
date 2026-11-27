@@ -31,7 +31,7 @@ Section $(inst_qbt_req) ;"qBittorrent (required)"
 
     ; Register qBittorrent as possible default program for .torrent files and magnet links
     WriteRegStr HKLM "Software\qBittorrent\Capabilities" "ApplicationDescription" "A BitTorrent client in Qt"
-    WriteRegStr HKLM "Software\qBittorrent\Capabilities" "ApplicationName" "qBittorrent"
+    WriteRegStr HKLM "Software\qBittorrent\Capabilities" "ApplicationName" "Torrenter"
     WriteRegStr HKLM "Software\qBittorrent\Capabilities\FileAssociations" ".torrent" "qBittorrent.File.Torrent"
     WriteRegStr HKLM "Software\qBittorrent\Capabilities\UrlAssociations" "magnet" "qBittorrent.Url.Magnet"
     WriteRegStr HKLM "Software\RegisteredApplications" "qBittorrent" "Software\qBittorrent\Capabilities"
@@ -51,7 +51,7 @@ Section $(inst_qbt_req) ;"qBittorrent (required)"
     System::Call 'shell32::SHChangeNotify(i ${SHCNE_ASSOCCHANGED}, i ${SHCNF_IDLIST}, p 0, p 0)'
 
     ; Write the uninstall keys for Windows
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\qBittorrent" "DisplayName" "qBittorrent"
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\qBittorrent" "DisplayName" "Torrenter"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\qBittorrent" "UninstallString" '"$INSTDIR\uninst.exe"'
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\qBittorrent" "DisplayIcon" '"$INSTDIR\qbittorrent.exe",0'
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\qBittorrent" "Publisher" "The qBittorrent project"

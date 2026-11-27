@@ -30,6 +30,14 @@
 
 #include <algorithm>
 
+#include <QFrame>
+#include <QGridLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QStyle>
+
+#include "windowsthemehelper.h"
+
 #include "base/bittorrent/cachestatus.h"
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/sessionstatus.h"
@@ -48,6 +56,47 @@ StatsDialog::StatsDialog(QWidget *parent)
     , m_storeDialogSize(SETTINGS_KEY(u"Size"_s))
 {
     m_ui->setupUi(this);
+
+    // Phase B / §5.7: real raised cards with hairline-separated stat rows.
+    setWindowTitle(tr("Statistics"));
+    winId();
+#ifdef Q_OS_WIN
+    WindowsThemeHelper::apply(this);
+#endif
+    for (QGroupBox *card : {m_ui->groupUser, m_ui->groupCache})
+    {
+        card->setProperty("statsCard", true);
+        auto *grid = qobject_cast<QGridLayout *>(card->layout());
+        if (grid == nullptr)
+            continue;
+        grid->setContentsMargins(16, 12, 16, 12);
+        grid->setHorizontalSpacing(12);
+        grid->setColumnStretch(1, 1);
+        for (int row = 0; row < grid->rowCount(); row += 2)
+            grid->setRowMinimumHeight(row, 44);
+        for (int row = 1; row < grid->rowCount(); row += 2)
+        {
+            auto *line = new QFrame(card);
+            line->setObjectName(QStringLiteral("statsHairline"));
+            line->setFrameShape(QFrame::NoFrame);
+            line->setFixedHeight(1);
+            grid->addWidget(line, row, 0, 1, 2);
+        }
+    }
+    for (const QString &name : {u"labelAlltimeDL"_s, u"labelAlltimeUL"_s, u"labelGlobalRatio"_s,
+                               u"labelPeers"_s, u"labelWaste"_s, u"labelTotalBuf"_s,
+                               u"labelQueuedJobs"_s, u"labelJobsTime"_s, u"labelQueuedBytes"_s})
+    {
+        if (auto *value = findChild<QLabel *>(name))
+            value->setObjectName(QStringLiteral("statsValue"));
+    }
+    if (auto *close = m_ui->buttonBox->button(QDialogButtonBox::Close))
+    {
+        close->setAutoDefault(false);
+        close->setProperty("variant", QStringLiteral("ghost"));
+        close->style()->unpolish(close);
+        close->style()->polish(close);
+    }
 
 #ifdef QBT_USES_LIBTORRENT2
     m_ui->labelCacheHitsText->hide();

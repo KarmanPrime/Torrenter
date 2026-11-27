@@ -53,7 +53,7 @@ void StacktraceDialog::setText(const QString &signalName, const QString &stacktr
 
     const QString htmlStr = QStringLiteral(
         "<p align=center><b><font size=7 color=red>"
-        "qBittorrent has crashed"
+        "Torrenter has crashed"
         "</font></b></p>"
         "<font size=4><p>"
         "Please file a bug report at "

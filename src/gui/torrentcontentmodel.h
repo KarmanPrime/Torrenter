@@ -66,6 +66,9 @@ public:
     void setContentHandler(BitTorrent::TorrentContentHandler *contentHandler);
     BitTorrent::TorrentContentHandler *contentHandler() const;
 
+    // Add torrent dialog uses short "Size" / "Priority" headers.
+    void setCompactHeaders(bool compact);
+
     void refresh();
 
     QList<BitTorrent::DownloadPriority> getFilePriorities() const;
@@ -117,6 +120,7 @@ private:
     bool setItemPriority(const QModelIndex &index, BitTorrent::DownloadPriority priority);
     void notifySubtreeUpdated(const QModelIndex &index, const QList<ColumnInterval> &columns);
 
+    bool m_compactHeaders = false;
     BitTorrent::TorrentContentHandler *m_contentHandler = nullptr;
     TorrentContentModelFolder *m_rootItem = nullptr;
     QList<TorrentContentModelFile *> m_filesIndex;

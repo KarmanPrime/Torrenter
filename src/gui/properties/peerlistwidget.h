@@ -84,6 +84,9 @@ public:
     void updatePeerCountryResolutionState();
     void clear();
 
+public slots:
+    void addPeers();
+
 private slots:
     bool loadSettings();
     void saveSettings() const;

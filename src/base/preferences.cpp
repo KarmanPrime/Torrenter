@@ -175,7 +175,8 @@ void Preferences::showSpeedInTitleBar(const bool show)
 
 bool Preferences::useAlternatingRowColors() const
 {
-    return value(u"Preferences/General/AlternatingRowColors"_s, true);
+    // Design default: flat rows; striping is opt-in via Preferences/General.
+    return value(u"Preferences/General/AlternatingRowColors"_s, false);
 }
 
 void Preferences::setAlternatingRowColors(const bool b)
@@ -413,7 +414,7 @@ void Preferences::setStatusbarDisplayed(const bool displayed)
 
 bool Preferences::isStatusbarFreeDiskSpaceDisplayed() const
 {
-    return value(u"Preferences/General/StatusbarFreeDiskSpaceDisplayed"_s, false);
+    return value(u"Preferences/General/StatusbarFreeDiskSpaceDisplayed"_s, true);
 }
 
 void Preferences::setStatusbarFreeDiskSpaceDisplayed(const bool displayed)
@@ -1697,7 +1698,7 @@ void Preferences::setFiltersSidebarVisible(const bool value)
 
 int Preferences::getFiltersSidebarWidth() const
 {
-    return value(u"GUI/MainWindow/FiltersSidebarWidth"_s, 120);
+    return std::max(value(u"GUI/MainWindow/FiltersSidebarWidth"_s, 220), 220);
 }
 
 void Preferences::setFiltersSidebarWidth(const int value)

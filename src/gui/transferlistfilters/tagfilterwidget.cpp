@@ -37,6 +37,7 @@
 #include "gui/autoexpandabledialog.h"
 #include "gui/uithememanager.h"
 #include "gui/utils.h"
+#include "gui/sidebaritemdelegate.h"
 #include "tagfiltermodel.h"
 #include "tagfilterproxymodel.h"
 
@@ -60,7 +61,9 @@ TagFilterWidget::TagFilterWidget(QWidget *parent)
     auto *proxyModel = new TagFilterProxyModel(this);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     proxyModel->setSourceModel(new TagFilterModel(this));
+    setProperty("torrenterFilterView", true);
     setModel(proxyModel);
+    setItemDelegate(new SidebarItemDelegate(this));
     setFrameShape(QFrame::NoFrame);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

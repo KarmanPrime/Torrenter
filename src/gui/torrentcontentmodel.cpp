@@ -469,6 +469,14 @@ Qt::ItemFlags TorrentContentModel::flags(const QModelIndex &index) const
     return flags;
 }
 
+void TorrentContentModel::setCompactHeaders(const bool compact)
+{
+    if (m_compactHeaders == compact)
+        return;
+    m_compactHeaders = compact;
+    emit headerDataChanged(Qt::Horizontal, 0, columnCount() - 1);
+}
+
 QVariant TorrentContentModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     if (orientation != Qt::Horizontal)
@@ -477,6 +485,10 @@ QVariant TorrentContentModel::headerData(int section, Qt::Orientation orientatio
     switch (role)
     {
     case Qt::DisplayRole:
+        if (m_compactHeaders && (section == TorrentContentModelItem::COL_SIZE))
+            return tr("Size");
+        if (m_compactHeaders && (section == TorrentContentModelItem::COL_PRIO))
+            return tr("Priority");
         return m_rootItem->displayData(section);
 
     case Qt::TextAlignmentRole:

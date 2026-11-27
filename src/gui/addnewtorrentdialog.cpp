@@ -34,11 +34,18 @@
 
 #include <QtVersionChecks>
 #include <QAction>
+#include <QAbstractButton>
 #include <QByteArray>
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QFileDialog>
+#include <QFontMetrics>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QIcon>
+#include <QLabel>
 #include <QFuture>
 #include <QList>
 #include <QMenu>
@@ -48,7 +55,10 @@
 #include <QSignalBlocker>
 #include <QSize>
 #include <QString>
+#include <QStringList>
+#include <QToolButton>
 #include <QUrl>
+#include <QVBoxLayout>
 
 #include "base/bittorrent/addtorrentparams.h"
 #include "base/bittorrent/downloadpriority.h"
@@ -69,7 +79,15 @@
 #include "base/utils/string.h"
 #include "filterpatternformatmenu.h"
 #include "lineedit.h"
+#include "torrentericons.h"
+#include "torrentsharelimitswidget.h"
 #include "torrenttagsdialog.h"
+#include "widgets/segmentedcontrol.h"
+#include "widgets/toggleswitch.h"
+
+#ifdef Q_OS_WIN
+#include "windowsthemehelper.h"
+#endif
 
 #include "ui_addnewtorrentdialog.h"
 
@@ -182,6 +200,129 @@ AddNewTorrentDialog::AddNewTorrentDialog(const BitTorrent::TorrentDescriptor &to
 {
     m_ui->setupUi(this);
 
+    // Phase 4 (mockup 04): token-driven chrome, native frame retained.
+    setWindowTitle(tr("Add torrent"));
+    setMinimumSize(760, 560);
+    resize(940, 680);
+
+    auto *header = new QFrame(this);
+    header->setObjectName(QStringLiteral("addHeader"));
+    auto *headerLayout = new QHBoxLayout(header);
+    headerLayout->setContentsMargins(20, 16, 22, 12);
+    headerLayout->setSpacing(12);
+
+    auto *tile = new QLabel(header);
+    tile->setObjectName(QStringLiteral("addHeaderTile"));
+    tile->setFixedSize(40, 40);
+    const bool headerHasMetadata = torrentDescr.info().has_value();
+    tile->setPixmap(TorrenterIcons::icon(headerHasMetadata ? QStringLiteral("file-down") : QStringLiteral("magnet")
+            , ThemeTokens::Token::AccentText, ThemeTokens::currentMode()).pixmap(QSize(20, 20)));
+    headerLayout->addWidget(tile);
+
+    auto *titles = new QVBoxLayout();
+    titles->setSpacing(3);
+    m_addHeaderName = new QLabel(header);
+    m_addHeaderName->setObjectName(QStringLiteral("addHeaderName"));
+    m_addHeaderMeta = new QLabel(header);
+    m_addHeaderMeta->setObjectName(QStringLiteral("addHeaderMeta"));
+    titles->addWidget(m_addHeaderName);
+    titles->addWidget(m_addHeaderMeta);
+    headerLayout->addLayout(titles, 1);
+
+    auto *closeButton = new QToolButton(header);
+    closeButton->setObjectName(QStringLiteral("addHeaderClose"));
+    closeButton->setIcon(TorrenterIcons::icon(QStringLiteral("x"), ThemeTokens::Token::Text2
+            , ThemeTokens::currentMode()));
+    closeButton->setIconSize(QSize(16, 16));
+    closeButton->setToolTip(tr("Close"));
+    closeButton->setAccessibleName(tr("Close"));
+    closeButton->setAccessibleDescription(tr("Cancel the add torrent dialog"));
+    connect(closeButton, &QToolButton::clicked, this, &QDialog::reject);
+    headerLayout->addWidget(closeButton);
+    if (auto *rootLayout = qobject_cast<QVBoxLayout *>(layout()))
+        rootLayout->insertWidget(0, header);
+
+    // Four-pixel free-space indicator: the fill width is updated from the
+    // real free-space / torrent-size values in updateDiskSpaceLabel().
+    if (auto *bar = findChild<QFrame *>(QStringLiteral("freeSpaceBar")))
+    {
+        auto *fill = new QFrame(bar);
+        fill->setObjectName(QStringLiteral("freeSpaceFill"));
+        fill->setGeometry(0, 0, 0, 4);
+    }
+
+    // "Remember last used save path" lives in the dialog footer (04 mockup).
+
+    const auto setVariant = [](QAbstractButton *button, const QString &variant)
+    {
+        button->setProperty("variant", variant);
+        button->style()->unpolish(button);
+        button->style()->polish(button);
+    };
+    if (QPushButton *ok = m_ui->buttonBox->button(QDialogButtonBox::Ok))
+        setVariant(ok, QStringLiteral("primary"));
+    if (QPushButton *cancel = m_ui->buttonBox->button(QDialogButtonBox::Cancel))
+        setVariant(cancel, QStringLiteral("ghost"));
+    setVariant(m_ui->buttonSave, QStringLiteral("ghost"));
+    setVariant(m_ui->buttonSelectAll, QStringLiteral("ghost"));
+    setVariant(m_ui->buttonSelectNone, QStringLiteral("ghost"));
+    m_filterLine->setObjectName(QStringLiteral("contentFilter"));
+
+    // The incomplete-download path is revealed only while the ToggleSwitch is
+    // checked. The upstream QGroupBox stays the source of truth for semantics.
+    connect(m_ui->useDownloadPathToggle, &QAbstractButton::toggled
+            , m_ui->groupBoxDownloadPath, &QGroupBox::setChecked);
+    connect(m_ui->groupBoxDownloadPath, &QGroupBox::toggled, this, [this](const bool checked)
+    {
+        m_ui->groupBoxDownloadPath->setVisible(checked);
+        if (m_ui->useDownloadPathToggle->isChecked() != checked)
+            m_ui->useDownloadPathToggle->setChecked(checked);
+    });
+    m_ui->useDownloadPathToggle->setAccessibleName(tr("Use another path for incomplete torrent"));
+    m_ui->useDownloadPathToggle->setAccessibleDescription(tr("Show a separate save path for incomplete files"));
+    m_ui->groupBoxDownloadPath->setVisible(m_ui->groupBoxDownloadPath->isChecked());
+
+    // Torrent management: the upstream combo remains authoritative; the
+    // two-option SegmentedControl is the visible control (04 mockup).
+    auto *tmmSegmented = new SegmentedControl(this);
+    tmmSegmented->setObjectName(QStringLiteral("tmmSegmented"));
+    tmmSegmented->setAccessibleName(tr("Torrent management"));
+    tmmSegmented->setAccessibleDescription(tr("Choose manual or automatic torrent management"));
+    tmmSegmented->addSegment(tr("Manual"), 0);
+    tmmSegmented->addSegment(tr("Automatic"), 1);
+    if (auto *tmmRow = findChild<QHBoxLayout *>(QStringLiteral("tmmRow")))
+        tmmRow->addWidget(tmmSegmented, 1);
+    connect(m_ui->comboTMM, &QComboBox::currentIndexChanged, tmmSegmented, &SegmentedControl::setCurrentIndex);
+    connect(tmmSegmented, &SegmentedControl::currentIndexChanged, m_ui->comboTMM, &QComboBox::setCurrentIndex);
+
+    // Content layout: three-option SegmentedControl, synced with the combo.
+    auto *layoutSegmented = new SegmentedControl(this);
+    layoutSegmented->setObjectName(QStringLiteral("contentLayoutSegmented"));
+    layoutSegmented->setAccessibleName(tr("Content layout"));
+    layoutSegmented->setAccessibleDescription(tr("Choose how the torrent content is placed on disk"));
+    layoutSegmented->addSegment(tr("Original"), 0);
+    layoutSegmented->addSegment(tr("Create subfolder"), 1);
+    layoutSegmented->addSegment(tr("No subfolder"), 2);
+    if (auto *layoutRow = findChild<QHBoxLayout *>(QStringLiteral("contentLayoutRow")))
+        layoutRow->addWidget(layoutSegmented, 1);
+    connect(m_ui->contentLayoutComboBox, &QComboBox::currentIndexChanged, layoutSegmented, &SegmentedControl::setCurrentIndex);
+    connect(layoutSegmented, &SegmentedControl::currentIndexChanged, m_ui->contentLayoutComboBox, &QComboBox::setCurrentIndex);
+
+    // Secondary controls live in a disclosure so the primary rows never clip.
+    if (auto *moreButton = findChild<QToolButton *>(QStringLiteral("moreOptionsButton")))
+    {
+        if (auto *moreFrame = findChild<QFrame *>(QStringLiteral("moreOptionsFrame")))
+        {
+            connect(moreButton, &QToolButton::toggled, moreFrame, &QFrame::setVisible);
+            moreButton->setAccessibleName(tr("More options"));
+            moreButton->setAccessibleDescription(tr("Show category defaults, torrent information and save options"));
+        }
+    }
+
+    m_ui->splitter->setSizes({400, 540});
+    m_ui->contentTreeView->setCompactHeaders(true);
+    m_ui->tagsLineEdit->setPlaceholderText(tr("Add tags..."));
+
     m_ui->scrollArea->viewport()->setAutoFillBackground(false);
     m_ui->scrollAreaWidgetContents->setAutoFillBackground(false);
 
@@ -202,6 +343,21 @@ AddNewTorrentDialog::AddNewTorrentDialog(const BitTorrent::TorrentDescriptor &to
     m_ui->stopConditionComboBox->addItem(tr("None"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::None));
     m_ui->stopConditionComboBox->addItem(tr("Files checked"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::FilesChecked));
 
+    // Share limits live in the More options disclosure; they map to the
+    // same AddTorrentParams fields used by the default-options widget.
+    {
+        const auto *session = BitTorrent::Session::instance();
+        m_ui->torrentShareLimitsWidget->setDefaults(
+                inParams.category.isEmpty() ? TorrentShareLimitsWidget::UsedDefaults::Global
+                        : TorrentShareLimitsWidget::UsedDefaults::Category
+                , session->categoryShareLimits(inParams.category));
+        m_ui->torrentShareLimitsWidget->setRatioLimit(inParams.shareLimits.ratioLimit);
+        m_ui->torrentShareLimitsWidget->setSeedingTimeLimit(inParams.shareLimits.seedingTimeLimit);
+        m_ui->torrentShareLimitsWidget->setInactiveSeedingTimeLimit(inParams.shareLimits.inactiveSeedingTimeLimit);
+        m_ui->torrentShareLimitsWidget->setShareLimitsMode(inParams.shareLimits.mode);
+        m_ui->torrentShareLimitsWidget->setShareLimitAction(inParams.shareLimits.action);
+    }
+
     m_ui->checkBoxRememberLastSavePath->setChecked(m_storeRememberLastSavePath);
     m_ui->doNotDeleteTorrentCheckBox->setVisible(TorrentFileGuard::autoDeleteMode() != TorrentFileGuard::Never);
 
@@ -210,7 +366,7 @@ AddNewTorrentDialog::AddNewTorrentDialog(const BitTorrent::TorrentDescriptor &to
     m_filterLine->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_filterLine->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_filterLine, &QWidget::customContextMenuRequested, this, &AddNewTorrentDialog::showContentFilterContextMenu);
-    m_ui->contentFilterLayout->insertWidget(3, m_filterLine);
+    m_ui->contentFilterLayout->insertWidget(0, m_filterLine);
     const auto *focusSearchHotkey = new QShortcut(QKeySequence::Find, this);
     connect(focusSearchHotkey, &QShortcut::activated, this, [this]()
     {
@@ -222,11 +378,20 @@ AddNewTorrentDialog::AddNewTorrentDialog(const BitTorrent::TorrentDescriptor &to
 
     if (const QByteArray state = m_storeTreeHeaderState; !state.isEmpty())
         m_ui->contentTreeView->header()->restoreState(state);
-    // Hide useless columns after loading the header state
+    // Only Name / Size / Priority are shown in the Add torrent dialog; fixed
+    // widths keep the headers from truncating to "Downl...".
+    QHeaderView *treeHeader = m_ui->contentTreeView->header();
+    treeHeader->setStretchLastSection(false);
     m_ui->contentTreeView->hideColumn(TorrentContentWidget::Progress);
     m_ui->contentTreeView->hideColumn(TorrentContentWidget::Remaining);
     m_ui->contentTreeView->hideColumn(TorrentContentWidget::Availability);
+    treeHeader->setSectionResizeMode(TorrentContentWidget::Name, QHeaderView::Stretch);
+    treeHeader->setSectionResizeMode(TorrentContentWidget::Size, QHeaderView::Fixed);
+    treeHeader->setSectionResizeMode(TorrentContentWidget::Priority, QHeaderView::Fixed);
+    treeHeader->resizeSection(TorrentContentWidget::Size, 96);
+    treeHeader->resizeSection(TorrentContentWidget::Priority, 105);
     m_ui->contentTreeView->setColumnsVisibilityMode(TorrentContentWidget::ColumnsVisibilityMode::Locked);
+    connect(m_ui->contentTreeView, &TorrentContentWidget::stateChanged, this, [this] { updateContentFooter(); });
     m_ui->contentTreeView->setDoubleClickAction(TorrentContentWidget::DoubleClickAction::Rename);
 
     connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -302,6 +467,9 @@ void AddNewTorrentDialog::saveState()
 void AddNewTorrentDialog::showEvent(QShowEvent *event)
 {
     QDialog::showEvent(event);
+#ifdef Q_OS_WIN
+    WindowsThemeHelper::apply(this);
+#endif
     if (!Preferences::instance()->isAddNewTorrentDialogTopLevel())
         return;
 
@@ -408,6 +576,34 @@ void AddNewTorrentDialog::setCurrentContext(const std::shared_ptr<Context> conte
     }
 
     TMMChanged(m_ui->comboTMM->currentIndex());
+
+    if (m_addHeaderName)
+    {
+        const QString name = torrentDescr.name().isEmpty() ? tr("Magnet link") : torrentDescr.name();
+        const QFontMetrics metrics(m_addHeaderName->font());
+        m_addHeaderName->setText(metrics.elidedText(name, Qt::ElideRight, 560));
+        m_addHeaderName->setAccessibleName(name);
+    }
+    if (m_addHeaderMeta)
+    {
+        QStringList meta;
+        if (hasMetadata)
+        {
+            const BitTorrent::InfoHash hash = torrentDescr.infoHash();
+            meta << Utils::Misc::friendlyUnit((*torrentDescr.info()).totalSize())
+                 << tr("%1 files").arg((*torrentDescr.info()).filesCount())
+                 << ((hash.v1().isValid() && hash.v2().isValid()) ? tr("v1 + v2 hybrid")
+                        : (hash.v2().isValid() ? tr("v2") : tr("v1")));
+        }
+        if (torrentDescr.creationDate().isValid())
+            meta << torrentDescr.creationDate().toString(Qt::TextDate);
+        if (!torrentDescr.creator().isEmpty())
+            meta << tr("by %1").arg(torrentDescr.creator());
+        m_addHeaderMeta->setText(meta.isEmpty() ? tr("Fetching metadata\u2026")
+                : meta.join(QStringLiteral(" \u00b7 ")));
+    }
+
+    updateContentFooter();
 }
 
 void AddNewTorrentDialog::updateCurrentContext()
@@ -434,6 +630,12 @@ void AddNewTorrentDialog::updateCurrentContext()
 
     addTorrentParams.sequential = m_ui->sequentialCheckBox->isChecked();
     addTorrentParams.firstLastPiecePriority = m_ui->firstLastCheckBox->isChecked();
+
+    addTorrentParams.shareLimits.ratioLimit = m_ui->torrentShareLimitsWidget->ratioLimit().value();
+    addTorrentParams.shareLimits.seedingTimeLimit = m_ui->torrentShareLimitsWidget->seedingTimeLimit().value();
+    addTorrentParams.shareLimits.inactiveSeedingTimeLimit = m_ui->torrentShareLimitsWidget->inactiveSeedingTimeLimit().value();
+    addTorrentParams.shareLimits.mode = m_ui->torrentShareLimitsWidget->shareLimitsMode().value();
+    addTorrentParams.shareLimits.action = m_ui->torrentShareLimitsWidget->shareLimitAction().value();
 
     const bool useAutoTMM = (m_ui->comboTMM->currentIndex() == 1); // 1 is Automatic mode. Handle all non 1 values as manual mode.
     addTorrentParams.useAutoTMM = useAutoTMM;
@@ -487,11 +689,66 @@ void AddNewTorrentDialog::updateDiskSpaceLabel()
         }
     }
 
-    const QString freeSpace = Utils::Misc::friendlyUnit(Utils::Fs::freeDiskSpaceOnPath(m_ui->savePath->selectedPath()));
-    const QString sizeString = tr("%1 (Free space on disk: %2)").arg(
-        ((torrentSize > 0) ? Utils::Misc::friendlyUnit(torrentSize) : tr("Not available", "This size is unavailable."))
-        , freeSpace);
-    m_ui->labelSizeData->setText(sizeString);
+    const qlonglong freeBytes = Utils::Fs::freeDiskSpaceOnPath(m_ui->savePath->selectedPath());
+    const QString freeSpace = Utils::Misc::friendlyUnit(freeBytes);
+    const QString sizeString = (torrentSize > 0)
+            ? Utils::Misc::friendlyUnit(torrentSize)
+            : tr("Not available", "This size is unavailable.");
+    m_ui->labelSizeData->setText(tr("%1 (Free space on disk: %2)").arg(sizeString, freeSpace));
+
+    if (auto *help = findChild<QLabel *>(QStringLiteral("freeSpaceHelp")))
+        help->setText(tr("Needs %1 \u00b7 %2 free").arg(sizeString, freeSpace));
+    if (auto *bar = findChild<QFrame *>(QStringLiteral("freeSpaceBar")))
+    {
+        if (auto *fill = bar->findChild<QFrame *>(QStringLiteral("freeSpaceFill")))
+        {
+            const qreal ratio = ((freeBytes > 0) && (torrentSize > 0))
+                    ? std::min(1.0, static_cast<qreal>(torrentSize) / static_cast<qreal>(freeBytes)) : 0;
+            const int fillWidth = static_cast<int>(bar->width() * ratio);
+            // Always show a >= 4 px accent sliver for non-empty torrents.
+            fill->setGeometry(0, 0, (torrentSize > 0) ? std::max(4, fillWidth) : 0, 4);
+        }
+    }
+
+    updateContentFooter();
+}
+
+void AddNewTorrentDialog::updateContentFooter()
+{
+    if (!m_currentContext) [[unlikely]]
+        return;
+
+    const BitTorrent::TorrentDescriptor &torrentDescr = m_currentContext->torrentDescr;
+    const BitTorrent::InfoHash infoHash = torrentDescr.infoHash();
+    const QString shortHash = infoHash.v1().isValid() ? infoHash.v1().toString().left(8)
+            : (infoHash.v2().isValid() ? infoHash.v2().toString().left(8) : QString {});
+    if (auto *hashLabel = findChild<QLabel *>(QStringLiteral("hashInfoLabel")))
+        hashLabel->setText(tr("Info hash %1").arg(shortHash));
+
+    auto *selectionLabel = findChild<QLabel *>(QStringLiteral("selectionInfoLabel"));
+    if (!selectionLabel)
+        return;
+
+    if (!torrentDescr.info())
+    {
+        selectionLabel->setText(tr("Selected 0 of 0"));
+        return;
+    }
+
+    const auto &torrentInfo = *torrentDescr.info();
+    const QList<BitTorrent::DownloadPriority> priorities = m_contentAdaptor
+            ? m_contentAdaptor->filePriorities() : QList<BitTorrent::DownloadPriority> {};
+    qlonglong selectedSize = 0;
+    qlonglong totalSize = 0;
+    for (qsizetype i = 0; i < torrentInfo.filesCount(); ++i)
+    {
+        const qlonglong fileSize = torrentInfo.fileSize(i);
+        totalSize += fileSize;
+        if ((i < priorities.size()) && (priorities[i] > BitTorrent::DownloadPriority::Ignored))
+            selectedSize += fileSize;
+    }
+    selectionLabel->setText(tr("Selected %1 of %2")
+            .arg(Utils::Misc::friendlyUnit(selectedSize), Utils::Misc::friendlyUnit(totalSize)));
 }
 
 void AddNewTorrentDialog::onSavePathChanged([[maybe_unused]] const Path &newPath)

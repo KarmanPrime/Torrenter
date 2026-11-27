@@ -30,6 +30,7 @@
 #include "basefilterwidget.h"
 
 #include "base/bittorrent/session.h"
+#include "gui/sidebaritemdelegate.h"
 #include "gui/utils.h"
 
 constexpr int ALL_ROW = 0;
@@ -38,12 +39,16 @@ BaseFilterWidget::BaseFilterWidget(QWidget *parent, TransferListWidget *transfer
     : QListWidget(parent)
     , m_transferList {transferList}
 {
+    setProperty("torrenterFilterView", true);  // sidebar focus scope (design: active section)
     setFrameShape(QFrame::NoFrame);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setUniformItemSizes(true);
+    // Stalled's two children use a 28px delegate sizeHint; other rows are 30px.
+    setUniformItemSizes(false);
     setSpacing(0);
+    setItemDelegate(new SidebarItemDelegate(this));
+    setIconSize(QSize(16, 16));
 
     setIconSize(Utils::Gui::smallIconSize());
 

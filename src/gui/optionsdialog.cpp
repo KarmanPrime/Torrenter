@@ -34,16 +34,32 @@
 #include <chrono>
 #include <limits>
 
+#include <QAbstractButton>
 #include <QApplication>
+#include <QScrollBar>
 #include <QClipboard>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QEvent>
 #include <QFileDialog>
+#include <QFrame>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListView>
+#include <QListWidgetItem>
 #include <QMessageBox>
+#include <QPalette>
+#include <QPushButton>
+#include <QScrollArea>
 #include <QStyleFactory>
 #include <QSystemTrayIcon>
+#include <QTimer>
+#include <QSize>
+#include <QToolButton>
+#include <QVBoxLayout>
 
 #ifdef Q_OS_WIN
 #include <QProcess>
@@ -71,11 +87,14 @@
 #include "base/utils/password.h"
 #include "base/utils/random.h"
 #include "base/utils/sslkey.h"
+#include "base/version.h"
 #include "advancedsettings.h"
 #include "banlistoptionsdialog.h"
 #include "interfaces/iguiapplication.h"
+#include "optionslayouthelper.h"
 #include "ipsubnetwhitelistoptionsdialog.h"
 #include "rss/automatedrssdownloader.h"
+#include "themetokens.h"
 #include "ui_optionsdialog.h"
 #include "uithemedialog.h"
 #include "uithememanager.h"
@@ -83,6 +102,7 @@
 #include "watchedfolderoptionsdialog.h"
 #include "watchedfoldersmodel.h"
 #include "webui/webui.h"
+#include "windowsthemehelper.h"
 
 #ifndef DISABLE_WEBUI
 #include "base/net/dnsupdater.h"
@@ -168,12 +188,126 @@ OptionsDialog::OptionsDialog(IGUIApplication *app, QWidget *parent)
     m_ui->setupUi(this);
     m_applyButton = m_ui->buttonBox->button(QDialogButtonBox::Apply);
 
+    // Phase A: rebuild Designer group boxes as real cards/rows (titles outside,
+    // hairline-separated 52 px rows) and lift the restart hint into a footer.
+    OptionsLayoutHelper::apply(this);
+
 #ifdef Q_OS_UNIX
     setWindowTitle(tr("Preferences"));
 #endif
 
+    // Phase 4 (mockup 05): Settings-style chrome around the existing pages.
+    resize(1100, 760);
+
+    auto *navPane = new QWidget(this);
+    navPane->setObjectName(QStringLiteral("settingsNavPane"));
+    {
+        // Chrome must be exact (#0F1012 / #F3F3F1); set the palette directly
+        // so it cannot be overridden by inherited dialog styles.
+        const auto mode = ThemeTokens::currentMode();
+        QPalette pal = navPane->palette();
+        pal.setColor(QPalette::Window, ThemeTokens::color(ThemeTokens::Token::Chrome, mode));
+        navPane->setPalette(pal);
+        navPane->setAutoFillBackground(true);
+    }
+    auto *navLayout = new QVBoxLayout(navPane);
+    navLayout->setContentsMargins(16, 10, 16, 10);
+    navLayout->setSpacing(2);
+    auto *navHeading = new QLabel(windowTitle(), navPane);
+    navHeading->setObjectName(QStringLiteral("settingsNavHeading"));
+    auto *navSearch = new QLineEdit(navPane);
+    navSearch->setObjectName(QStringLiteral("settingsSearch"));
+    navSearch->setPlaceholderText(tr("Search settings"));
+    navSearch->setClearButtonEnabled(true);
+    navLayout->addWidget(navHeading);
+    navLayout->addWidget(navSearch);
+    navLayout->addWidget(m_ui->tabSelection, 1);
+    auto *versionLabel = new QLabel(QStringLiteral("Torrenter " QBT_VERSION_2), navPane);
+    versionLabel->setObjectName(QStringLiteral("settingsVersion"));
+    navLayout->addWidget(versionLabel);
+    m_ui->hsplitter->insertWidget(0, navPane);
+    connect(navSearch, &QLineEdit::textChanged, this, [this](const QString &text)
+    {
+        for (int i = 0; i < m_ui->tabSelection->count(); ++i)
+        {
+            QListWidgetItem *item = m_ui->tabSelection->item(i);
+            item->setHidden(!item->text().contains(text, Qt::CaseInsensitive));
+        }
+        // Highlight matching card titles on every page while typing.
+        const QWidget *page = m_ui->tabOption->currentWidget();
+        if (page == nullptr)
+            return;
+        for (QLabel *label : page->findChildren<QLabel *>(QStringLiteral("settingsCardTitle")))
+        {
+            const QString groupTitle = label->property("groupTitle").toString();
+            const bool match = !text.isEmpty() && groupTitle.contains(text, Qt::CaseInsensitive);
+            label->setProperty("searchMatch", match);
+            label->style()->unpolish(label);
+            label->style()->polish(label);
+            label->update();
+        }
+    });
+
+    auto *contentPane = new QWidget(this);
+    auto *contentLayout = new QVBoxLayout(contentPane);
+    contentLayout->setContentsMargins(28, 18, 28, 14);
+    contentLayout->setSpacing(6);
+    auto *pageTitle = new QLabel(contentPane);
+    pageTitle->setObjectName(QStringLiteral("settingsPageTitle"));
+    auto *pageDescription = new QLabel(contentPane);
+    pageDescription->setObjectName(QStringLiteral("settingsPageDescription"));
+    pageDescription->setWordWrap(true);
+    auto *pageTexts = new QVBoxLayout();
+    pageTexts->setSpacing(2);
+    pageTexts->addWidget(pageTitle);
+    pageTexts->addWidget(pageDescription);
+    auto *pageHeader = new QHBoxLayout();
+    pageHeader->addLayout(pageTexts, 1);
+    auto *closeButton = new QToolButton(contentPane);
+    closeButton->setObjectName(QStringLiteral("settingsClose"));
+    closeButton->setText(QStringLiteral("\u00d7"));
+    closeButton->setToolTip(tr("Close"));
+    connect(closeButton, &QToolButton::clicked, this, &QDialog::reject);
+    pageHeader->addWidget(closeButton);
+    contentLayout->addLayout(pageHeader);
+    contentLayout->addWidget(m_ui->tabOption, 1);
+    m_ui->hsplitter->addWidget(contentPane);
+    connect(m_ui->tabSelection, &QListWidget::currentItemChanged, this,
+            [this, pageTitle, pageDescription](QListWidgetItem *current, QListWidgetItem *)
+    {
+        if (!current)
+            return;
+        pageTitle->setText(current->text());
+        pageDescription->setText((current->text() == tr("Behavior"))
+                ? tr("How Torrenter looks and behaves on your desktop.") : QString());
+    });
+
     m_ui->hsplitter->setCollapsible(0, false);
     m_ui->hsplitter->setCollapsible(1, false);
+    m_ui->hsplitter->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+
+    // Keep the pages clear of the window edges and give the OK / Cancel / Apply
+    // bar some breathing room (QA-v7 item 5).
+    if (auto *dialogLayout = qobject_cast<QVBoxLayout *>(layout()))
+    {
+        dialogLayout->setContentsMargins(12, 12, 12, 12);
+        dialogLayout->setSpacing(10);
+    }
+
+    // Keep every settings page inside its scroll area and above the fixed
+    // OK / Cancel / Apply bar. Without this, the tall Downloads page pushes
+    // the button box off the bottom and clips "Delete .torrent file afterwards".
+    m_ui->tabOption->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    m_ui->tabOption->setMinimumSize(0, 0);
+    for (QScrollArea *area : asConst(findChildren<QScrollArea *>()))
+    {
+        area->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+        area->setMinimumSize(0, 0);
+        area->setWidgetResizable(true);
+        area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        if (QWidget *contents = area->widget())
+            contents->setMinimumSize(0, 0);
+    }
 
     // Main icons
     m_ui->tabSelection->item(TAB_UI)->setIcon(UIThemeManager::instance()->getIcon(u"preferences-desktop"_s));
@@ -190,20 +324,21 @@ OptionsDialog::OptionsDialog(IGUIApplication *app, QWidget *parent)
 #endif
     m_ui->tabSelection->item(TAB_ADVANCED)->setIcon(UIThemeManager::instance()->getIcon(u"preferences-advanced"_s, u"preferences-other"_s));
 
-    // set uniform size for all icons
-    int maxHeight = -1;
+    // 16 px monochrome icons on the LEFT of 30 px sidebar rows.
+    m_ui->tabSelection->setViewMode(QListView::ListMode);
+    m_ui->tabSelection->setFlow(QListView::TopToBottom);
+    m_ui->tabSelection->setResizeMode(QListView::Adjust);
+    m_ui->tabSelection->setUniformItemSizes(true);
+    m_ui->tabSelection->setSpacing(0);
+    m_ui->tabSelection->setIconSize(QSize(16, 16));
     for (int i = 0; i < m_ui->tabSelection->count(); ++i)
-        maxHeight = std::max(maxHeight, m_ui->tabSelection->visualItemRect(m_ui->tabSelection->item(i)).size().height());
-    for (int i = 0; i < m_ui->tabSelection->count(); ++i)
-    {
-        const QSize size(std::numeric_limits<int>::max(), static_cast<int>(maxHeight * 1.2));
-        m_ui->tabSelection->item(i)->setSizeHint(size);
-    }
+        m_ui->tabSelection->item(i)->setSizeHint(QSize(200, 30));
 
     connect(m_ui->tabSelection, &QListWidget::currentItemChanged, this, &ThisType::changePage);
 
     // Load options
     loadBehaviorTabOptions();
+
     loadDownloadsTabOptions();
     loadConnectionTabOptions();
     loadSpeedTabOptions();
@@ -234,7 +369,72 @@ OptionsDialog::OptionsDialog(IGUIApplication *app, QWidget *parent)
     for (QSpinBox *widget : asConst(findChildren<QSpinBox *>()))
         widget->installEventFilter(wheelEventEater);
 
+    m_ui->labelRestartRequired->setObjectName(QStringLiteral("settingsRestartHint"));
+    const auto setButtonVariant = [](QAbstractButton *button, const QString &variant)
+    {
+        button->setProperty("variant", variant);
+        button->style()->unpolish(button);
+        button->style()->polish(button);
+    };
+    if (QPushButton *okButton = m_ui->buttonBox->button(QDialogButtonBox::Ok))
+        setButtonVariant(okButton, QStringLiteral("primary"));
+    if (QPushButton *cancelButton = m_ui->buttonBox->button(QDialogButtonBox::Cancel))
+        setButtonVariant(cancelButton, QStringLiteral("ghost"));
+    if (m_applyButton != nullptr)
+        setButtonVariant(m_applyButton, QStringLiteral("secondary"));
+
     m_ui->tabSelection->setCurrentRow(m_storeLastViewedPage);
+    if (QListWidgetItem *current = m_ui->tabSelection->currentItem())
+    {
+        if (QLabel *title = findChild<QLabel *>(QStringLiteral("settingsPageTitle")))
+            title->setText(current->text());
+        if (QLabel *description = findChild<QLabel *>(QStringLiteral("settingsPageDescription")))
+        {
+            description->setText((current->text() == tr("Behavior"))
+                    ? tr("How Torrenter looks and behaves on your desktop.") : QString());
+        }
+    }
+#ifdef TORRENTER_QA_HOOKS
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_DOWNLOADS_PAGE"))
+        QTimer::singleShot(400, this, [this]() { m_ui->tabSelection->setCurrentRow(TAB_DOWNLOADS); });
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_OPTIONS_TAB"))
+    {
+        bool ok = false;
+        const int row = QString::fromLocal8Bit(qgetenv("TORRENTER_QA_OPTIONS_TAB")).toInt(&ok);
+        if (ok && (row >= 0) && (row < m_ui->tabSelection->count()))
+            QTimer::singleShot(400, this, [this, row]() { m_ui->tabSelection->setCurrentRow(row); });
+    }
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_OPTIONS_SCROLL_TO"))
+    {
+        const QString target = QString::fromLocal8Bit(qgetenv("TORRENTER_QA_OPTIONS_SCROLL_TO"));
+        QTimer::singleShot(700, this, [this, target]()
+        {
+            QWidget *w = findChild<QWidget *>(target);
+            if (w == nullptr)
+                return;
+            for (QScrollArea *area : asConst(findChildren<QScrollArea *>()))
+            {
+                if ((area->widget() != nullptr) && area->widget()->isAncestorOf(w))
+                {
+                    area->ensureWidgetVisible(w, 0, 0);
+                    break;
+                }
+            }
+        });
+    }
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_OPTIONS_SCROLL"))
+        QTimer::singleShot(900, this, [this]()
+        {
+            // QA-v8 item 2: land the viewport bottom inside the 48 px gutter
+            // after "Append .!qB", so that row and the two above it are fully
+            // visible and no control is sliced at the viewport edge.
+            QScrollArea *area = m_ui->scrollArea_2;
+            const int appendBottom = m_ui->checkAppendqB->mapTo(area->widget()
+                , QPoint(0, m_ui->checkAppendqB->height())).y();
+            QScrollBar *bar = area->verticalScrollBar();
+            bar->setValue(std::max(0, appendBottom + 24 - area->viewport()->height()));
+        });
+#endif
 
     if (const QSize dialogSize = m_storeDialogSize; dialogSize.isValid())
         resize(dialogSize);
@@ -269,8 +469,8 @@ void OptionsDialog::loadBehaviorTabOptions()
     m_ui->checkUseCustomTheme->setChecked(Preferences::instance()->useCustomUITheme());
     m_ui->customThemeFilePath->setSelectedPath(Preferences::instance()->customUIThemePath());
     m_ui->customThemeFilePath->setMode(FileSystemPathEdit::Mode::FileOpen);
-    m_ui->customThemeFilePath->setDialogCaption(tr("Select qBittorrent UI Theme file"));
-    m_ui->customThemeFilePath->setFileNameFilter(tr("qBittorrent UI Theme file (*.qbtheme config.json)"));
+    m_ui->customThemeFilePath->setDialogCaption(tr("Select Torrenter UI Theme file"));
+    m_ui->customThemeFilePath->setFileNameFilter(tr("Torrenter UI Theme file (*.qbtheme config.json)"));
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
     m_ui->checkUseSystemIcon->setChecked(pref->useSystemIcons());
 #else
@@ -627,7 +827,7 @@ void OptionsDialog::loadDownloadsTabOptions()
     m_ui->deleteTorrentWarningLabel->setToolTip(u"<html><body><p>" +
         tr("By enabling these options, you can <strong>irrevocably lose</strong> your .torrent files!") +
         u"</p><p>" +
-        tr("When these options are enabled, qBittorrent will <strong>delete</strong> .torrent files "
+        tr("When these options are enabled, Torrenter will <strong>delete</strong> .torrent files "
         "after they were successfully (the first option) or not (the second option) added to its "
         "download queue. This will be applied <strong>not only</strong> to the files opened via "
         "&ldquo;Add torrent&rdquo; menu action but to those opened via <strong>file type association</strong> as well") +
@@ -1588,7 +1788,7 @@ void OptionsDialog::onBtnWebUIAPIKeyRotateClicked()
         ? tr("Generate API key")
         : tr("Rotate API key");
     const QString message = m_currentAPIKey.isEmpty()
-        ? tr("Generate an API key? This key can be used to interact with qBittorrent's API.")
+        ? tr("Generate an API key? This key can be used to interact with Torrenter's API.")
         : tr("Rotate this API key? The current key will immediately stop working and a new key will be generated.");
 
     const QMessageBox::StandardButton button = QMessageBox::question(
@@ -1665,7 +1865,7 @@ void OptionsDialog::changePage(QListWidgetItem *current, QListWidgetItem *previo
 void OptionsDialog::loadSplitterState()
 {
     // width has been modified, use height as width reference instead
-    const int width = m_ui->tabSelection->item(TAB_UI)->sizeHint().height() * 2;
+    const int width = 240;
     const QStringList defaultSizes = {QString::number(width), QString::number(m_ui->hsplitter->width() - width)};
 
     QList<int> splitterSizes;
@@ -1678,6 +1878,12 @@ void OptionsDialog::loadSplitterState()
 void OptionsDialog::showEvent(QShowEvent *e)
 {
     QDialog::showEvent(e);
+
+    // §7.1: native DWM-tinted titlebar + rounded corners, re-applied on show.
+#ifdef Q_OS_WIN
+    winId();
+    WindowsThemeHelper::apply(this);
+#endif
 
     loadSplitterState();
 }
@@ -1984,9 +2190,9 @@ void OptionsDialog::initializeStyleCombo()
 void OptionsDialog::initializeColorSchemeOptions()
 {
 #ifdef QBT_HAS_COLORSCHEME_OPTION
-    m_ui->comboColorScheme->addItem(tr("Dark", "Dark color scheme"), QVariant::fromValue(ColorScheme::Dark));
-    m_ui->comboColorScheme->addItem(tr("Light", "Light color scheme"), QVariant::fromValue(ColorScheme::Light));
     m_ui->comboColorScheme->addItem(tr("System", "System color scheme"), QVariant::fromValue(ColorScheme::System));
+    m_ui->comboColorScheme->addItem(tr("Light", "Light color scheme"), QVariant::fromValue(ColorScheme::Light));
+    m_ui->comboColorScheme->addItem(tr("Dark", "Dark color scheme"), QVariant::fromValue(ColorScheme::Dark));
     m_ui->comboColorScheme->setCurrentIndex(m_ui->comboColorScheme->findData(QVariant::fromValue(UIThemeManager::instance()->colorScheme())));
 #else
     m_ui->labelColorScheme->hide();

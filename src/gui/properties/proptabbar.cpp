@@ -32,6 +32,7 @@
 #include <QFocusEvent>
 #include <QKeySequence>
 #include <QPushButton>
+#include <QStyle>
 #include <QSpacerItem>
 
 #include "base/global.h"
@@ -71,6 +72,18 @@ PropTabBar::PropTabBar(QWidget *parent)
     setAlignment(Qt::AlignLeft | Qt::AlignCenter);
     setSpacing(3);
     m_btnGroup = new QButtonGroup(this);
+    if (auto *manager = UIThemeManager::instance())
+    {
+        connect(manager, &UIThemeManager::themeChanged, this, [this]()
+        {
+            for (QAbstractButton *button : m_btnGroup->buttons())
+            {
+                button->setIcon(button->icon());
+                button->style()->unpolish(button);
+                button->style()->polish(button);
+            }
+        });
+    }
     // General tab
     QPushButton *mainInfosButton = new PropTabButton(
 #ifndef Q_OS_MACOS

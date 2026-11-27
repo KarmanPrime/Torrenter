@@ -29,17 +29,31 @@
 
 #include "propertieswidget.h"
 
+#include <QAbstractItemModel>
+#include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
 #include <QDebug>
+#include <QFont>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QHash>
 #include <QFuture>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLayoutItem>
 #include <QListWidgetItem>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPointer>
+#include <QPushButton>
 #include <QSplitter>
 #include <QShortcut>
+#include <QSizePolicy>
 #include <QStackedWidget>
+#include <QStyle>
+#include <QToolButton>
+#include <QTimer>
 #include <QUrl>
 
 #include "base/bittorrent/infohash.h"
@@ -58,7 +72,11 @@
 #include "gui/uithememanager.h"
 #include "gui/utils.h"
 #include "gui/utils/keysequence.h"
+#include "gui/themetokens.h"
+#include "gui/torrentericons.h"
 #include "downloadedpiecesbar.h"
+#include "gui/torrentcontentmodel.h"
+#include "gui/torrentcontentmodelitem.h"
 #include "peerlistwidget.h"
 #include "pieceavailabilitybar.h"
 #include "proptabbar.h"
@@ -79,12 +97,55 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
 
     // Torrent content filtering
     m_contentFilterLine = new LineEdit(this);
+    m_contentFilterLine->setObjectName(u"contentFilterLine"_s);
     m_contentFilterLine->setPlaceholderText(tr("Filter files..."));
-    m_contentFilterLine->setFixedWidth(300);
+    m_contentFilterLine->setFixedSize(260, 30);
     m_contentFilterLine->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_contentFilterLine, &QWidget::customContextMenuRequested, this, &PropertiesWidget::showContentFilterContextMenu);
     connect(m_contentFilterLine, &LineEdit::textUpdated, this, &PropertiesWidget::setContentFilterPattern);
-    m_ui->contentFilterLayout->insertWidget(3, m_contentFilterLine);
+    // Tool row: filter, Select all, Select none, stretch, Selected X of Y.
+    if (auto *toolRow = qobject_cast<QHBoxLayout *>(m_ui->contentFilterLayout))
+    {
+        while (toolRow->count() > 0)
+        {
+            QLayoutItem *item = toolRow->takeAt(0);
+            delete item;
+        }
+        const auto ghostButton = [this](QPushButton *button, const QString &text, const QString &iconId)
+        {
+            button->setText(text);
+            button->setObjectName(u"contentGhostButton"_s);
+            button->setIcon(TorrenterIcons::icon(iconId, ThemeTokens::Token::Text2, ThemeTokens::currentMode()));
+            button->setIconSize(QSize(14, 14));
+            button->setFixedHeight(24);
+            button->setCursor(Qt::PointingHandCursor);
+        };
+        ghostButton(m_ui->selectAllButton, tr("Select all"), u"check-check"_s);
+        ghostButton(m_ui->selectNoneButton, tr("Select none"), u"square-dashed"_s);
+        m_contentSelectedLabel = new QLabel(m_ui->pageContents);
+        m_contentSelectedLabel->setObjectName(u"contentSelectedLabel"_s);
+        toolRow->setContentsMargins(0, 0, 16, 10);
+        toolRow->setSpacing(8);
+        toolRow->addWidget(m_contentFilterLine);
+        toolRow->addWidget(m_ui->selectAllButton);
+        toolRow->addWidget(m_ui->selectNoneButton);
+        toolRow->addStretch();
+        toolRow->addWidget(m_contentSelectedLabel);
+    }
+    connect(m_ui->filesList->selectionModel(), &QItemSelectionModel::selectionChanged
+            , this, [this]() { updateContentSelectionLabel(); });
+    connect(m_ui->filesList->model(), &QAbstractItemModel::dataChanged
+            , this, [this](const QModelIndex &, const QModelIndex &, const QList<int> &roles)
+    {
+        if (roles.isEmpty() || roles.contains(Qt::CheckStateRole))
+            updateContentSelectionLabel();
+    });
+
+    // HTTP sources empty state.
+    m_noHttpSourcesLabel = new QLabel(tr("No HTTP sources"), m_ui->pageSources);
+    m_noHttpSourcesLabel->setObjectName(u"httpSourcesEmpty"_s);
+    m_noHttpSourcesLabel->setAlignment(Qt::AlignCenter);
+    m_ui->verticalLayout_9->addWidget(m_noHttpSourcesLabel);
 
     m_ui->filesList->setContentDragAllowed(true);
     m_ui->filesList->setDoubleClickAction(TorrentContentWidget::DoubleClickAction::Open);
@@ -97,22 +158,21 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
     connect(m_ui->stackedProperties, &QStackedWidget::currentChanged, this, &PropertiesWidget::loadDynamicData);
     connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentSavePathChanged, this, &PropertiesWidget::updateSavePath);
     connect(m_ui->filesList, &TorrentContentWidget::stateChanged, this, &PropertiesWidget::saveSettings);
+    connect(m_ui->filesList, &TorrentContentWidget::stateChanged, this, &PropertiesWidget::updateContentSelectionLabel);
 
-    // set bar height relative to screen dpi
-    const int barHeight = 18;
-
+    // Pieces bars are sized in setupGeneralCards().
     // Downloaded pieces progress bar
     m_ui->tempProgressBarArea->setVisible(false);
     m_downloadedPieces = new DownloadedPiecesBar(this);
     m_ui->groupBarLayout->addWidget(m_downloadedPieces, 0, 1);
-    m_downloadedPieces->setFixedHeight(barHeight);
+    m_downloadedPieces->setFixedHeight(10);
     m_downloadedPieces->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     // Pieces availability bar
     m_ui->tempAvailabilityBarArea->setVisible(false);
     m_piecesAvailability = new PieceAvailabilityBar(this);
     m_ui->groupBarLayout->addWidget(m_piecesAvailability, 1, 1);
-    m_piecesAvailability->setFixedHeight(barHeight);
+    m_piecesAvailability->setFixedHeight(7);
     m_piecesAvailability->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     // Tracker list
@@ -127,10 +187,115 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
     // Peers list
     m_peerList = new PeerListWidget(this);
     m_ui->vBoxLayoutPeerPage->addWidget(m_peerList);
-    // Tab bar
+    // Tab bar: one segmented control (General / Trackers / Peers / HTTP Sources / Content / Speed).
     m_tabBar = new PropTabBar(nullptr);
-    m_tabBar->setContentsMargins(0, 5, 0, 5);
-    m_ui->verticalLayout->addLayout(m_tabBar);
+    // PropTabBar puts a spacer before Speed; remove it so all six tabs form one track.
+    for (int i = m_tabBar->count() - 1; i >= 0; --i)
+    {
+        QLayoutItem *item = m_tabBar->itemAt(i);
+        if (item && item->spacerItem())
+        {
+            m_tabBar->removeItem(item);
+            delete item;
+            break;
+        }
+    }
+
+    const auto mode = ThemeTokens::currentMode();
+    const auto tokenCss = [mode](const ThemeTokens::Token token) -> QString
+    {
+        const QColor c = ThemeTokens::color(token, mode);
+        return QStringLiteral("rgba(%1,%2,%3,%4)")
+                .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha());
+    };
+
+    for (int i = 0; i < m_tabBar->count(); ++i)
+    {
+        if (QPushButton *button = qobject_cast<QPushButton *>(m_tabBar->itemAt(i)->widget()))
+        {
+            button->setObjectName(u"torrenterPropTab"_s);
+            button->setProperty("baseText", button->text());
+            button->setFixedHeight(26);
+            button->setIconSize(QSize(14, 14));
+            QFont font = button->font();
+            font.setPixelSize(12);
+            font.setWeight(QFont::Medium);
+            button->setFont(font);
+        }
+    }
+
+    // Raised track wrapping the six 26 px segments.
+    m_tabTrack = new QWidget(this);
+    m_tabTrack->setObjectName(u"torrenterPropTabTrack"_s);
+    auto *trackLayout = new QHBoxLayout(m_tabTrack);
+    trackLayout->setContentsMargins(3, 3, 3, 3);
+    trackLayout->setSpacing(2);
+    trackLayout->addLayout(m_tabBar);
+    trackLayout->addStretch(1);
+    m_addPeersButton = new QToolButton(m_tabTrack);
+    m_addPeersButton->setObjectName(u"peerAddButton"_s);
+    m_addPeersButton->setIcon(TorrenterIcons::icon(u"peers-add"_s, ThemeTokens::Token::Text2, mode));
+    m_addPeersButton->setIconSize(QSize(14, 14));
+    m_addPeersButton->setText(tr("Add peers"));
+    m_addPeersButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    m_addPeersButton->hide();
+    connect(m_addPeersButton, &QToolButton::clicked, m_peerList, &PeerListWidget::addPeers);
+    trackLayout->addWidget(m_addPeersButton);
+    m_hideButton = new QToolButton(m_tabTrack);
+    m_hideButton->setObjectName(u"propHide"_s);
+    m_hideButton->setIcon(TorrenterIcons::icon(u"panel-bottom-close"_s, ThemeTokens::Token::Text2, mode));
+    m_hideButton->setIconSize(QSize(16, 16));
+    m_hideButton->setToolTip(tr("Hide details panel"));
+    trackLayout->addWidget(m_hideButton);
+    connect(m_hideButton, &QToolButton::clicked, this, [this]()
+    {
+        // Clicking the active tab collapses the panel; mirror that here.
+        m_tabBar->setCurrentIndex(m_tabBar->currentIndex());
+    });
+    m_tabTrack->setStyleSheet(
+        QStringLiteral("QWidget#torrenterPropTabTrack { background: %1; border: 1px solid %2; border-radius: 9px; }"
+            " QPushButton#torrenterPropTab { background: transparent; border: none; border-radius: 6px; padding: 0 11px; color: %3; }"
+            " QPushButton#torrenterPropTab:hover { background: %4; color: %5; }"
+            " QPushButton#torrenterPropTab[active=\"true\"] { background: %6; color: %5; }")
+        .arg(tokenCss(ThemeTokens::Token::Raised)
+            , tokenCss(ThemeTokens::Token::LineSubtle)
+            , tokenCss(ThemeTokens::Token::Text2)
+            , tokenCss(ThemeTokens::Token::Hover)
+            , tokenCss(ThemeTokens::Token::Text1)
+            , tokenCss(ThemeTokens::Token::Pressed)));
+    m_ui->verticalLayout->insertWidget(0, m_tabTrack);
+
+    // QA-v6 item 2: active tab icons take the accent tint; others text2.
+    static const char *tabIconIds[] = {"help-about", "trackers", "peers", "network-server", "directory", "chart-line"};
+    const auto refreshTabStyles = [this]()
+    {
+        const int current = m_tabBar->currentIndex();
+        for (int i = 0; i < m_tabBar->count(); ++i)
+        {
+            if (QPushButton *button = qobject_cast<QPushButton *>(m_tabBar->itemAt(i)->widget()))
+            {
+                const bool active = (i == current);
+                button->setProperty("active", active);
+                if (i < 6)
+                {
+                    const QString iconId = QString::fromLatin1(tabIconIds[i]);
+                    button->setIcon(active ? UIThemeManager::instance()->activeIcon(iconId)
+                                           : UIThemeManager::instance()->getIcon(iconId));
+                }
+                button->style()->unpolish(button);
+                button->style()->polish(button);
+                button->update();
+            }
+        }
+    };
+    refreshTabStyles();
+    connect(m_tabBar, &PropTabBar::tabChanged, this, [this, refreshTabStyles](int index)
+    {
+        refreshTabStyles();
+        if (m_addPeersButton)
+            m_addPeersButton->setVisible(index == PropTabBar::PeersTab);
+    });
+    connect(m_tabBar, &PropTabBar::visibilityToggled, this, [refreshTabStyles](bool) { refreshTabStyles(); });
     connect(m_tabBar, &PropTabBar::tabChanged, m_ui->stackedProperties, &QStackedWidget::setCurrentIndex);
     connect(m_tabBar, &PropTabBar::tabChanged, this, &PropertiesWidget::saveSettings);
     connect(m_tabBar, &PropTabBar::visibilityToggled, this, &PropertiesWidget::setVisibility);
@@ -142,14 +307,422 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
     connect(deleteWebSeedsHotkey, &QShortcut::activated, this, &PropertiesWidget::deleteSelectedUrlSeeds);
     connect(m_ui->listWebSeeds, &QListWidget::doubleClicked, this, &PropertiesWidget::editWebSeed);
 
+#ifdef TORRENTER_QA_HOOKS
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_EXPAND_FILES"))
+    {
+        QTimer::singleShot(6000, this, [this]()
+        {
+            m_contentFilterLine->clear();
+            setContentFilterPattern();
+            m_ui->filesList->expandAll();
+        });
+    }
+#endif
+
     configure();
+    setupGeneralCards();
+    updateTabCounts();
     connect(Preferences::instance(), &Preferences::changed, this, &PropertiesWidget::configure);
+}
+
+
+void PropertiesWidget::setupGeneralCards()
+{
+    auto *root = qobject_cast<QVBoxLayout *>(m_ui->verticalLayout_2);
+    if (root == nullptr)
+        return;
+
+    // 4 px top, 16 px sides/bottom, 12 px gaps; scroll rather than clip.
+    root->setContentsMargins(16, 4, 16, 16);
+    root->setSpacing(12);
+    m_ui->scrollArea->setFrameShape(QFrame::NoFrame);
+    m_ui->scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    const auto detach = [](QWidget *w)
+    {
+        if ((w == nullptr) || (w->parentWidget() == nullptr) || (w->parentWidget()->layout() == nullptr))
+            return;
+        QLayout *layout = w->parentWidget()->layout();
+        for (int i = 0; i < layout->count(); ++i)
+        {
+            QLayoutItem *item = layout->itemAt(i);
+            if (item->widget() == w)
+            {
+                layout->removeItem(item);
+                delete item;
+                return;
+            }
+        }
+    };
+    const auto byName = [this](const QString &name) -> QWidget *
+    {
+        return findChild<QWidget *>(name);
+    };
+    const auto enableTabularFigures = [](QWidget *widget)
+    {
+        auto *label = qobject_cast<QLabel *>(widget);
+        if (label == nullptr)
+            return;
+        QFont font = label->font();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        font.setFeature(QFont::Tag("tnum"), 1);
+#endif
+        label->setFont(font);
+    };
+
+    // --- Header card -------------------------------------------------------
+    auto *barLayout = qobject_cast<QGridLayout *>(m_ui->groupBarLayout);
+    QHash<QString, QWidget *> barWidgets;
+    if (barLayout != nullptr)
+    {
+        for (int i = 0; i < barLayout->count(); ++i)
+            if (QWidget *w = barLayout->itemAt(i)->widget())
+                barWidgets.insert(w->objectName(), w);
+        while (barLayout->count() > 0)
+        {
+            QLayoutItem *item = barLayout->takeAt(0);
+            delete item;
+        }
+    }
+
+    m_downloadedPieces->setObjectName(u"torrenterPiecesBar"_s);
+    m_piecesAvailability->setObjectName(u"torrenterPiecesBar"_s);
+    if (barLayout != nullptr)
+    {
+        barLayout->setContentsMargins(0, 0, 0, 0);
+        barLayout->setHorizontalSpacing(0);
+        barLayout->setVerticalSpacing(6);
+        barLayout->addWidget(m_downloadedPieces, 0, 0, 1, 2);
+        barLayout->addWidget(m_piecesAvailability, 1, 0, 1, 2);
+    }
+
+    auto *header = new QWidget(this);
+    header->setObjectName(u"detailsCard"_s);
+    header->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    header->setMinimumWidth(0);
+    auto *headerLayout = new QVBoxLayout(header);
+    headerLayout->setContentsMargins(12, 14, 16, 12);
+    headerLayout->setSpacing(8);
+
+    auto *top = new QHBoxLayout;
+    top->setSpacing(10);
+    m_detailName = new QLabel(tr("No torrent selected"), header);
+    m_detailName->setObjectName(u"detailName"_s);
+    m_detailName->setMinimumWidth(0);
+    m_detailName->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_detailPill = new QLabel(header);
+    m_detailPill->setObjectName(u"detailPill"_s);
+    m_detailPill->hide();
+    m_detailSummary = new QLabel(header);
+    m_detailSummary->setObjectName(u"detailSummary"_s);
+    m_detailSummary->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    m_detailSummary->setMinimumWidth(340);
+    m_detailSummary->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    enableTabularFigures(m_detailSummary);
+    top->addWidget(m_detailName, 1);
+    top->addWidget(m_detailPill);
+    top->addStretch();
+    headerLayout->addLayout(top);
+    auto *summaryRow = new QHBoxLayout;
+    summaryRow->addStretch();
+    summaryRow->addWidget(m_detailSummary);
+    headerLayout->addLayout(summaryRow);
+    headerLayout->addWidget(m_ui->groupBar);
+
+    auto *legend = new QHBoxLayout;
+    legend->setSpacing(8);
+    const auto swatch = [this, header, legend](const QString &objectName, const QString &text)
+    {
+        auto *s = new QLabel(header);
+        s->setObjectName(objectName);
+        s->setFixedSize(8, 8);
+        legend->addWidget(s);
+        auto *l = new QLabel(text, header);
+        l->setObjectName(u"detailMeta"_s);
+        legend->addWidget(l);
+    };
+    swatch(u"detailSwatchHave"_s, tr("Have"));
+    swatch(u"detailSwatchPartial"_s, tr("Partial"));
+    swatch(u"detailSwatchMissing"_s, tr("Missing"));
+    legend->addStretch(1);
+
+    // Keep the original labels alive and working; showPieces*() still toggles them.
+    auto *hidden = new QWidget(header);
+    hidden->setObjectName(u"detailHiddenLabels"_s);
+    hidden->hide();
+    auto *hiddenLayout = new QHBoxLayout(hidden);
+    for (const QString &name : {u"labelDownloadedPieces"_s, u"labelPiecesAvailability"_s})
+        if (QWidget *w = barWidgets.value(name))
+        {
+            detach(w);
+            hiddenLayout->addWidget(w);
+        }
+    if (QWidget *w = barWidgets.value(u"labelProgressVal"_s))
+    {
+        detach(w);
+        w->setObjectName(u"detailMeta"_s);
+        legend->addWidget(w);
+    }
+    auto *availabilityKey = new QLabel(tr("Availability"), header);
+    availabilityKey->setObjectName(u"detailMeta"_s);
+    legend->addWidget(availabilityKey);
+    if (QWidget *w = barWidgets.value(u"labelAverageAvailabilityVal"_s))
+    {
+        detach(w);
+        w->setObjectName(u"detailMeta"_s);
+        legend->addWidget(w);
+    }
+    m_detailPiecesMeta = new QLabel(header);
+    m_detailPiecesMeta->setObjectName(u"detailMeta"_s);
+    legend->addWidget(m_detailPiecesMeta);
+    headerLayout->addLayout(legend);
+
+    m_ui->labelSavePathVal->setWordWrap(false);
+    m_ui->lineBelowBars->setFixedHeight(0);
+    m_ui->lineBelowBars->setMaximumHeight(0);
+    headerLayout->addWidget(m_ui->lineBelowBars);
+
+    // --- Three cards -------------------------------------------------------
+    using Field = QPair<QString, QString>;
+    const QList<Field> transferFields {
+        {u"labelTimeActive"_s, u"labelElapsedVal"_s},
+        {u"labelETA"_s, u"labelETAVal"_s},
+        {u"labelDownloaded"_s, u"labelDlTotalVal"_s},
+        {u"labelUploaded"_s, u"labelUpTotalVal"_s},
+        {u"labelWasted"_s, u"labelWastedVal"_s},
+        {u"labelRatio"_s, u"labelShareRatioVal"_s}
+    };
+    const QList<Field> speedFields {
+        {u"labelDlSpeed"_s, u"labelDlSpeedVal"_s},
+        {u"labelUpSpeed"_s, u"labelUpSpeedVal"_s},
+        {u"labelConnections"_s, u"labelConnectionsVal"_s},
+        {u"labelSeeds"_s, u"labelSeedsVal"_s},
+        {u"labelPeers"_s, u"labelPeersVal"_s},
+        {u"labelDlLimit"_s, u"labelDlLimitVal"_s},
+        {u"labelUpLimit"_s, u"labelUpLimitVal"_s},
+        {u"labelReannounceIn"_s, u"labelReannounceInVal"_s},
+        {u"labelLastSeenComplete"_s, u"labelLastSeenCompleteVal"_s},
+        {u"labelPopularity"_s, u"labelPopularityVal"_s}
+    };
+    const QList<Field> infoFields {
+        {u"labelSavePath"_s, u"labelSavePathVal"_s},
+        {u"labelAddedOn"_s, u"labelAddedOnVal"_s},
+        {u"labelCompletedOn"_s, u"labelCompletedOnVal"_s},
+        {u"labelCreatedBy"_s, u"labelCreatedByVal"_s},
+        {u"labelCreatedOn"_s, u"labelCreatedOnVal"_s},
+        {u"labelInfohash1"_s, u"labelInfohash1Val"_s},
+        {u"labelInfohash2"_s, u"labelInfohash2Val"_s},
+        {u"labelComment"_s, u"labelCommentVal"_s},
+        {u"labelTotalSize"_s, u"labelTotalSizeVal"_s},
+        {u"labelTotalPieces"_s, u"labelTotalPiecesVal"_s},
+        {u"labelPrivate"_s, u"labelPrivateVal"_s}
+    };
+
+    const auto buildCard = [this, &detach, &byName, &enableTabularFigures](QGroupBox *card, const QString &title
+            , const QString &iconId, const QList<Field> &fields, const bool withCopy)
+    {
+        card->setObjectName(u"detailsCard"_s);
+        card->setTitle({});
+        card->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        card->setMinimumWidth((title == tr("Information")) ? 300 : 250);
+        auto *grid = qobject_cast<QGridLayout *>(card->layout());
+        if (grid == nullptr)
+            grid = new QGridLayout(card);
+        while (grid->count() > 0)
+        {
+            QLayoutItem *item = grid->takeAt(0);
+            delete item;
+        }
+        grid->setContentsMargins(12, 12, 14, 12);
+        grid->setHorizontalSpacing(8);
+        grid->setVerticalSpacing(4);
+        grid->setColumnMinimumWidth(0, 128);
+        grid->setColumnStretch(1, 1);
+
+        auto *icon = new QLabel(card);
+        icon->setPixmap(TorrenterIcons::icon(iconId, ThemeTokens::Token::Text2
+                , ThemeTokens::currentMode()).pixmap(QSize(14, 14)));
+        auto *heading = new QLabel(title, card);
+        heading->setObjectName(u"detailHeader"_s);
+        heading->setTextFormat(Qt::RichText);
+        heading->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        auto *cardHeader = new QHBoxLayout;
+        cardHeader->setSpacing(6);
+        cardHeader->addWidget(icon);
+        cardHeader->addWidget(heading, 1);
+        grid->addLayout(cardHeader, 0, 0, 1, 2);
+
+        int row = 1;
+        for (const Field &field : fields)
+        {
+            QWidget *key = byName(field.first);
+            QWidget *value = byName(field.second);
+            if ((key == nullptr) || (value == nullptr))
+                continue;
+            detach(key);
+            detach(value);
+            key->setObjectName(u"detailKey"_s);
+            if (auto *keyLabel = qobject_cast<QLabel *>(key))
+                keyLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            value->setObjectName(u"detailValue"_s);
+            value->setMinimumWidth(0);
+            value->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+            if (auto *valueLabel = qobject_cast<QLabel *>(value))
+            {
+                valueLabel->setWordWrap(true);
+                enableTabularFigures(valueLabel);
+            }
+            grid->addWidget(key, row, 0);
+            if (withCopy && ((field.first == u"labelInfohash1"_s) || (field.first == u"labelInfohash2"_s)))
+            {
+                auto *box = new QHBoxLayout;
+                box->setSpacing(4);
+                box->addWidget(value, 1);
+                auto *copy = new QToolButton(card);
+                copy->setObjectName(u"detailCopy"_s);
+                copy->setIcon(TorrenterIcons::icon(u"edit-copy"_s, ThemeTokens::Token::Text3
+                        , ThemeTokens::currentMode()));
+                copy->setIconSize(QSize(12, 12));
+                copy->setToolTip(tr("Copy to clipboard"));
+                auto *copyLabel = qobject_cast<QLabel *>(value);
+                connect(copy, &QToolButton::clicked, this, [copyLabel]()
+                {
+                    if (copyLabel != nullptr)
+                        QApplication::clipboard()->setText(copyLabel->text());
+                });
+                box->addWidget(copy);
+                grid->addLayout(box, row, 1);
+            }
+            else
+            {
+                grid->addWidget(value, row, 1);
+            }
+            ++row;
+        }
+    };
+
+    auto *cards = new QWidget(this);
+    cards->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    cards->setMinimumWidth(0);
+    auto *cardGrid = new QGridLayout(cards);
+    cardGrid->setContentsMargins(0, 0, 0, 0);
+    cardGrid->setHorizontalSpacing(12);
+    cardGrid->setColumnStretch(0, 4);
+    cardGrid->setColumnStretch(1, 4);
+    cardGrid->setColumnStretch(2, 5);
+
+    buildCard(m_ui->groupTransferBox, tr("Transfer"), u"chart-line"_s, transferFields, false);
+    auto *speedCard = new QGroupBox(this);
+    buildCard(speedCard, tr("Speed &amp; peers"), u"gauge"_s, speedFields, false);
+    buildCard(m_ui->groupInfosBox, tr("Information"), u"help-about"_s, infoFields, true);
+    cardGrid->addWidget(m_ui->groupTransferBox, 0, 0);
+    cardGrid->addWidget(speedCard, 0, 1);
+    cardGrid->addWidget(m_ui->groupInfosBox, 0, 2);
+
+    while (root->count() > 0)
+    {
+        QLayoutItem *item = root->takeAt(0);
+        delete item;
+    }
+    root->addWidget(header);
+    root->addWidget(cards);
+}
+
+void PropertiesWidget::updateContentSelectionLabel()
+{
+    if (m_contentSelectedLabel == nullptr)
+        return;
+    const auto *model = m_ui->filesList->model();
+    if ((model == nullptr) || (model->rowCount() == 0))
+    {
+        m_contentSelectedLabel->setText({});
+        return;
+    }
+    qlonglong total = 0;
+    qlonglong selected = 0;
+    // Count leaf files only: folder sizes are the sum of their children.
+    const auto accumulate = [&model, &total, &selected](const auto &self, const QModelIndex &parent) -> void
+    {
+        for (int row = 0; row < model->rowCount(parent); ++row)
+        {
+            const QModelIndex nameIndex = model->index(row, TorrentContentModelItem::COL_NAME, parent);
+            const qlonglong size = model->index(row, TorrentContentModelItem::COL_SIZE, parent)
+                .data(TorrentContentModel::UnderlyingDataRole).toLongLong();
+            if (model->rowCount(nameIndex) > 0)
+                self(self, nameIndex);
+            else
+            {
+                total += size;
+                if (nameIndex.data(Qt::CheckStateRole).toInt() == Qt::Checked)
+                    selected += size;
+            }
+        }
+    };
+    accumulate(accumulate, QModelIndex());
+    m_contentSelectedLabel->setText(tr("Selected %1 of %2")
+        .arg(Utils::Misc::friendlyUnit(selected), Utils::Misc::friendlyUnit(total)));
+}
+
+void PropertiesWidget::updateGeneralHeader()
+{
+    if ((m_detailName == nullptr) || (m_torrent == nullptr))
+        return;
+
+    m_detailName->setText(m_torrent->name());
+    const QString status = m_torrent->isFinished() ? tr("Seeding")
+        : (m_torrent->isStopped() ? tr("Stopped") : tr("Downloading"));
+    m_detailPill->setText(status);
+    m_detailPill->show();
+    const QString downloaded = m_ui->labelDlTotalVal->text().section(u" ("_s, 0, 0);
+    const QString eta = m_ui->labelETAVal->text();
+    m_detailSummary->setText(tr("%1 of %2 · %3 left")
+        .arg(downloaded, m_ui->labelTotalSizeVal->text(), eta.isEmpty() ? tr("—") : eta));
+    m_detailPiecesMeta->setText(tr("· Pieces %1").arg(m_ui->labelTotalPiecesVal->text()));
+}
+
+void PropertiesWidget::updateTabCounts()
+{
+    if (m_tabBar == nullptr)
+        return;
+    const int trackerCount = m_trackerList->model() ? m_trackerList->model()->rowCount() : 0;
+    const int peerCount = m_peerList->model() ? m_peerList->model()->rowCount() : 0;
+    for (int i = 0; i < m_tabBar->count(); ++i)
+    {
+        QPushButton *button = qobject_cast<QPushButton *>(m_tabBar->itemAt(i)->widget());
+        if (button == nullptr)
+            continue;
+        const QString base = button->property("baseText").toString();
+        if ((i == PropTabBar::TrackersTab) || (i == PropTabBar::PeersTab))
+        {
+            const int count = (i == PropTabBar::TrackersTab) ? trackerCount : peerCount;
+            button->setText(QStringLiteral("%1  %2").arg(base).arg(count));
+            QFont font = button->font();
+            font.setPixelSize(11);
+            button->setFont(font);
+        }
+        else if (!base.isEmpty())
+        {
+            button->setText(base);
+        }
+    }
 }
 
 PropertiesWidget::~PropertiesWidget()
 {
     delete m_tabBar;
     delete m_ui;
+}
+
+void PropertiesWidget::setCurrentTab(const int index)
+{
+    // Force a fresh selection so the segmented buttons repaint even when the
+    // saved tab index already matches.
+    if (m_tabBar != nullptr)
+    {
+        m_tabBar->setCurrentIndex(-1);
+        m_tabBar->setCurrentIndex(index);
+    }
+    m_ui->stackedProperties->setCurrentIndex(index);
 }
 
 void PropertiesWidget::showPiecesAvailability(bool show)
@@ -170,11 +743,42 @@ void PropertiesWidget::showPiecesDownloaded(bool show)
         m_ui->lineBelowBars->setVisible(show);
 }
 
+void PropertiesWidget::animateSplitterSizes(const QList<int> &target)
+{
+    auto *splitter = static_cast<QSplitter *>(parentWidget());
+    if (!splitter || (splitter->sizes().size() != target.size()))
+    {
+        splitter->setSizes(target);
+        return;
+    }
+    m_slideStartSizes = splitter->sizes();
+    m_slideTargetSizes = target;
+    m_slideElapsed = 0;
+    if (!m_slideAnimTimer.isActive())
+    {
+        m_slideAnimTimer.setInterval(16);
+        connect(&m_slideAnimTimer, &QTimer::timeout, this, [this]()
+        {
+            m_slideElapsed += m_slideAnimTimer.interval();
+            const qreal t = qMin<qreal>(1.0, static_cast<qreal>(m_slideElapsed) / 300.0);
+            const qreal eased = 1.0 - std::pow(1.0 - t, 3.0);
+            QList<int> sizes;
+            for (int i = 0; i < m_slideStartSizes.size(); ++i)
+                sizes.append(qRound(m_slideStartSizes.at(i) + (m_slideTargetSizes.at(i) - m_slideStartSizes.at(i)) * eased));
+            if (auto *splitter = static_cast<QSplitter *>(parentWidget()))
+                splitter->setSizes(sizes);
+            if (t >= 1.0)
+                m_slideAnimTimer.stop();
+        });
+        m_slideAnimTimer.start();
+    }
+}
+
 void PropertiesWidget::setVisibility(const bool visible)
 {
     if (!visible && (m_state == VISIBLE))
     {
-        const int tabBarHeight = m_tabBar->geometry().height(); // take height before hiding
+        const int tabBarHeight = m_tabTrack->geometry().height(); // take height before hiding
         auto *hSplitter = static_cast<QSplitter *>(parentWidget());
         m_ui->stackedProperties->setVisible(false);
         m_slideSizes = hSplitter->sizes();
@@ -183,7 +787,7 @@ void PropertiesWidget::setVisibility(const bool visible)
         m_handleWidth = hSplitter->handleWidth();
         hSplitter->setHandleWidth(0);
         const QList<int> sizes {(hSplitter->geometry().height() - tabBarHeight), tabBarHeight};
-        hSplitter->setSizes(sizes);
+        animateSplitterSizes(sizes);
         setMaximumSize(maximumSize().width(), tabBarHeight);
         m_state = REDUCED;
         return;
@@ -197,7 +801,7 @@ void PropertiesWidget::setVisibility(const bool visible)
             hSplitter->setHandleWidth(m_handleWidth);
         hSplitter->handle(1)->setDisabled(false);
         hSplitter->handle(1)->setVisible(true);
-        hSplitter->setSizes(m_slideSizes);
+        animateSplitterSizes(m_slideSizes);
         m_state = VISIBLE;
         setMaximumSize(maximumSize().width(), QWIDGETSIZE_MAX);
         // Force refresh
@@ -394,6 +998,8 @@ void PropertiesWidget::loadDynamicData()
     // Refresh only if the torrent handle is valid and visible
     if (!m_torrent || (m_state != VISIBLE)) return;
 
+    updateTabCounts();
+
     // Transfer infos
     switch (m_ui->stackedProperties->currentIndex())
     {
@@ -490,6 +1096,7 @@ void PropertiesWidget::loadDynamicData()
                 // Progress
                 qreal progress = m_torrent->progress() * 100.;
                 m_ui->labelProgressVal->setText(Utils::String::fromDouble(progress, 1) + u'%');
+                updateGeneralHeader();
 
                 m_torrent->fetchDownloadingPieces().then(this
                         , [this, torrent = QPointer(m_torrent)](const QBitArray &downloadingPieces)
@@ -510,6 +1117,7 @@ void PropertiesWidget::loadDynamicData()
         break;
     case PropTabBar::FilesTab:
         m_ui->filesList->refresh();
+        updateContentSelectionLabel();
         break;
     default:;
     }
@@ -533,6 +1141,8 @@ void PropertiesWidget::loadUrlSeeds()
             qDebug("Loading web seed: %s", qUtf8Printable(urlSeed.toString()));
             new QListWidgetItem(urlSeed.toString(), m_ui->listWebSeeds);
         }
+        if (m_noHttpSourcesLabel)
+            m_noHttpSourcesLabel->setVisible(m_ui->listWebSeeds->count() == 0);
     });
 }
 
@@ -615,7 +1225,7 @@ void PropertiesWidget::askWebSeed()
     qDebug("Adding %s web seed", qUtf8Printable(urlSeed));
     if (!m_ui->listWebSeeds->findItems(urlSeed, Qt::MatchFixedString).empty())
     {
-        QMessageBox::warning(this, u"qBittorrent"_s, tr("This web seed is already in the list."), QMessageBox::Ok);
+        QMessageBox::warning(this, u"Torrenter"_s, tr("This web seed is already in the list."), QMessageBox::Ok);
         return;
     }
     if (m_torrent)
@@ -667,7 +1277,7 @@ void PropertiesWidget::editWebSeed()
 
     if (!m_ui->listWebSeeds->findItems(newSeed, Qt::MatchFixedString).empty())
     {
-        QMessageBox::warning(this, u"qBittorrent"_s,
+        QMessageBox::warning(this, u"Torrenter"_s,
                              tr("This web seed is already in the list."),
                              QMessageBox::Ok);
         return;

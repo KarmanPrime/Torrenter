@@ -29,8 +29,13 @@
 
 #include "progressbarpainter.h"
 
+#include <algorithm>
+#include <QFontMetrics>
+#include <QGuiApplication>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPalette>
+#include <QStyleHints>
 #include <QStyleOptionProgressBar>
 #include <QStyleOptionViewItem>
 
@@ -40,6 +45,7 @@
 
 #include "base/global.h"
 #include "gui/uithememanager.h"
+#include "themetokens.h"
 
 ProgressBarPainter::ProgressBarPainter(QObject *parent)
     : QObject(parent)
@@ -54,37 +60,118 @@ ProgressBarPainter::ProgressBarPainter(QObject *parent)
     connect(UIThemeManager::instance(), &UIThemeManager::themeChanged, this, &ProgressBarPainter::applyUITheme);
 }
 
-void ProgressBarPainter::paint(QPainter *painter, const QStyleOptionViewItem &option, const QString &text, const int progress, const QColor &color) const
+namespace
 {
-    QStyleOptionProgressBar styleOption;
-    styleOption.initFrom(&m_dummyProgressBar);
-    // QStyleOptionProgressBar fields
-    styleOption.maximum = 100;
-    styleOption.minimum = 0;
-    styleOption.progress = progress;
-    styleOption.text = text;
-    styleOption.textVisible = true;
-    // QStyleOption fields
-    styleOption.rect = option.rect.adjusted(0, 1, 0, -1);
-    // Qt 6 requires QStyle::State_Horizontal to be set for correctly drawing horizontal progress bar
-    styleOption.state = option.state | QStyle::State_Horizontal;
-
-    const bool isEnabled = option.state.testFlag(QStyle::State_Enabled);
-    styleOption.palette.setCurrentColorGroup(isEnabled ? QPalette::Active : QPalette::Disabled);
-
-    if (color.isValid())
+    QHash<quint64, qreal> &displayedProgress()
     {
-        styleOption.palette.setColor(QPalette::Highlight, color);
+        static QHash<quint64, qreal> values;
+        return values;
     }
-    else if (m_chunkColor.isValid())
+
+    QTimer &stripeTimer()
     {
-        styleOption.palette.setColor(QPalette::Highlight, m_chunkColor);
+        static QTimer timer;
+        return timer;
     }
+
+    qreal &stripeOffset()
+    {
+        static qreal offset = 0;
+        return offset;
+    }
+
+    int &stripeFrames()
+    {
+        static int frames = 0;
+        return frames;
+    }
+}
+
+qreal ProgressBarPainter::lerped(const quint64 key, const qreal target)
+{
+    if (key == 0)
+        return target;
+    qreal &value = displayedProgress()[key];
+    if (value <= 0)
+        value = target;
+    else
+    {
+        value += (target - value) * 0.08;
+        if (qAbs(target - value) < 0.05)
+            value = target;
+    }
+    return value;
+}
+
+void ProgressBarPainter::noteStriped()
+{
+    ++stripeFrames();
+    auto &timer = stripeTimer();
+    if (timer.isActive())
+        return;
+    timer.setInterval(1000 / 30);
+    QObject::connect(&timer, &QTimer::timeout, &timer, []()
+    {
+        stripeOffset() += 7.0 / 30.0;
+        if (stripeOffset() >= 7.0)
+            stripeOffset() -= 7.0;
+        if (stripeFrames() == 0)
+            stripeTimer().stop();
+        stripeFrames() = 0;
+    });
+    timer.start();
+}
+
+qreal ProgressBarPainter::stripePhase()
+{
+    return stripeOffset();
+}
+
+void ProgressBarPainter::paint(QPainter *painter, const QStyleOptionViewItem &option, const QString &text, const int progress,
+    const QColor &color, const bool striped, const quint64 key) const
+{
+    const auto mode = ThemeTokens::currentMode();
+    const QColor fillColor = color.isValid() ? color : ThemeTokens::color(ThemeTokens::Token::Accent, mode);
+    const QColor trackColor = ThemeTokens::color(ThemeTokens::Token::Track, mode);
+    const QColor textColor = option.palette.color(QPalette::Text);
+
+    const QRect cell = option.rect;
+    const int textWidth = QFontMetrics(option.font).horizontalAdvance(text);
+    const int barWidth = std::max(24, cell.width() - textWidth - 10);
+    const QRect track(cell.left(), cell.center().y() - 2, barWidth, 4);
+    const qreal displayed = lerped(key, std::clamp(progress, 0, 100));
+    const QRect fillRect(track.left(), track.top(), qRound(track.width() * displayed / 100.0), track.height());
 
     painter->save();
-    const QStyle *style = m_dummyProgressBar.style();
-    style->drawPrimitive(QStyle::PE_PanelItemViewItem, &option, painter, option.widget);
-    style->drawControl(QStyle::CE_ProgressBar, &styleOption, painter, &m_dummyProgressBar);
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(trackColor);
+    painter->drawRoundedRect(track, 2, 2);
+    if (fillRect.width() > 0)
+    {
+        painter->setBrush(fillColor);
+        painter->drawRoundedRect(fillRect, 2, 2);
+        if (striped)
+        {
+            noteStriped();
+            painter->save();
+            QPainterPath clipPath;
+            clipPath.addRoundedRect(fillRect, 2, 2);
+            painter->setClipPath(clipPath);
+            painter->setPen(QPen(QColor(255, 255, 255, 71), 3, Qt::SolidLine));
+            const qreal phase = stripePhase();
+            for (int x = fillRect.left() - static_cast<int>(fillRect.height()) - 14;
+                 x < fillRect.right() + 14; x += 7)
+            {
+                const int offset = x + static_cast<int>(phase) % 7;
+                painter->drawLine(offset, fillRect.bottom(), offset + fillRect.height(), fillRect.top());
+            }
+            painter->restore();
+        }
+    }
+    painter->setPen(textColor);
+    painter->drawText(QRect(cell.right() - textWidth, cell.top(), textWidth, cell.height())
+                      , Qt::AlignRight | Qt::AlignVCenter, text);
     painter->restore();
 }
 

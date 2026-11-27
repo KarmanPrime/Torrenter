@@ -42,6 +42,9 @@
 
 #include "fspathedit_p.h"
 
+#include "torrentericons.h"
+#include "themetokens.h"
+
 namespace
 {
     struct TrStringWithComment
@@ -91,7 +94,8 @@ FileSystemPathEdit::FileSystemPathEditPrivate::FileSystemPathEditPrivate(
                         FileSystemPathEdit *q, Private::IFileEditorWithCompletion *editor)
     : q_ptr {q}
     , m_editor {editor}
-    , m_browseAction {new QAction(QApplication::style()->standardIcon(QStyle::SP_DirOpenIcon), browseButtonFullText.tr(), q)}
+    , m_browseAction {new QAction(TorrenterIcons::icon(QStringLiteral("folder"), ThemeTokens::Token::Text2
+                    , ThemeTokens::currentMode()), browseButtonFullText.tr(), q)}
     , m_browseBtn {new QToolButton(q)}
     , m_fileNameFilter {tr("Any file") + u" (*)"}
     , m_validator {new Private::FileSystemPathValidator(q)}

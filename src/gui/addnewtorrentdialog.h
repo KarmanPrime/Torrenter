@@ -38,6 +38,7 @@
 #include "filterpatternformat.h"
 
 class LineEdit;
+class QLabel;
 
 namespace BitTorrent
 {
@@ -75,6 +76,7 @@ public slots:
 
 private slots:
     void updateDiskSpaceLabel();
+    void updateContentFooter();
     void onSavePathChanged(const Path &newPath);
     void onDownloadPathChanged(const Path &newPath);
     void onUseDownloadPathChanged(bool checked);
@@ -105,6 +107,8 @@ private:
     int m_downloadPathIndex = -1;
     bool m_useDownloadPath = false;
     LineEdit *m_filterLine = nullptr;
+    QLabel *m_addHeaderName = nullptr;
+    QLabel *m_addHeaderMeta = nullptr;
 
     std::shared_ptr<Context> m_currentContext;
 

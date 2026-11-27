@@ -30,7 +30,10 @@
 
 #include <QModelIndex>
 #include <QPainter>
+#include <QPainterPath>
+#include <QFont>
 
+#include "gui/themetokens.h"
 #include "trackerlistmodel.h"
 #include "trackerlistwidget.h"
 
@@ -39,6 +42,46 @@ TrackerListItemDelegate::TrackerListItemDelegate(TrackerListWidget *view)
     , m_view {view}
 {
     Q_ASSERT(m_view);
+}
+
+void TrackerListItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    if (index.column() != TrackerListModel::COL_STATUS)
+    {
+        QStyledItemDelegate::paint(painter, option, index);
+        return;
+    }
+
+    QStyleOptionViewItem base {option};
+    base.text.clear();
+    base.features &= ~QStyleOptionViewItem::HasDisplay;
+    QStyledItemDelegate::paint(painter, base, index);
+
+    const QString status = index.data().toString();
+    const auto mode = ThemeTokens::currentMode();
+    ThemeTokens::Token token = ThemeTokens::Token::Text3;
+    if (status == tr("Working"))
+        token = ThemeTokens::Token::StDown;
+    else if (status == tr("Updating..."))
+        token = ThemeTokens::Token::StCheck;
+    else if (status == tr("Not working"))
+        token = ThemeTokens::Token::StError;
+    else if (status == tr("Not contacted yet"))
+        token = ThemeTokens::Token::StPaused;
+
+    const QColor ink = ThemeTokens::color(token, mode);
+    const QRect pill {option.rect.left() + 6, option.rect.top() + 7, option.rect.width() - 14, 20};
+    QPainterPath path;
+    path.addRoundedRect(pill, 5, 5);
+    painter->setPen(QPen(ink, 1));
+    painter->setBrush(QColor(ink.red(), ink.green(), ink.blue(), 20));
+    painter->drawPath(path);
+    QFont font = option.font;
+    font.setPixelSize(11);
+    font.setWeight(QFont::DemiBold);
+    painter->setFont(font);
+    painter->setPen(ink);
+    painter->drawText(pill, Qt::AlignCenter, status);
 }
 
 void TrackerListItemDelegate::initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const

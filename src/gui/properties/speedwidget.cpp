@@ -29,6 +29,8 @@
 #include "speedwidget.h"
 
 #include <QDateTime>
+#include <QFrame>
+#include <QToolButton>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
@@ -37,6 +39,9 @@
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/sessionstatus.h"
 #include "base/preferences.h"
+#include "base/utils/misc.h"
+#include "gui/themetokens.h"
+#include "gui/widgets/segmentedcontrol.h"
 #include "propertieswidget.h"
 #include "speedplotview.h"
 
@@ -64,18 +69,67 @@ SpeedWidget::SpeedWidget(PropertiesWidget *parent)
     m_hlayout = new QHBoxLayout();
     m_hlayout->setContentsMargins(0, 0, 0, 0);
 
+    // Header readouts: caption + colored dot above a large tabular value.
+    const auto makeReadout = [this](const QString &caption, ThemeTokens::Token dotToken,
+        QLabel *&valueLabel, QLabel *&unitLabel, QHBoxLayout *&row)
+    {
+        QWidget *readout = new QWidget(this);
+        readout->setObjectName(u"speedReadout"_s);
+        auto *layout = new QVBoxLayout(readout);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(1);
+        row = new QHBoxLayout();
+        row->setContentsMargins(0, 0, 0, 0);
+        row->setSpacing(5);
+        auto *dot = new QLabel(readout);
+        dot->setText(u"●"_s);
+        dot->setObjectName(u"speedDot"_s);
+        dot->setStyleSheet(u"color: %1; font-size: 8px;"_s.arg(
+            ThemeTokens::color(dotToken, ThemeTokens::currentMode()).name()));
+        auto *captionLabel = new QLabel(caption, readout);
+        captionLabel->setObjectName(u"speedCaption"_s);
+        row->addWidget(dot);
+        row->addWidget(captionLabel);
+        row->addStretch();
+        layout->addLayout(row);
+        auto *valueRow = new QHBoxLayout();
+        valueRow->setContentsMargins(0, 0, 0, 0);
+        valueRow->setSpacing(4);
+        valueLabel = new QLabel(u"0"_s, readout);
+        valueLabel->setObjectName(u"speedValue"_s);
+        unitLabel = new QLabel(readout);
+        unitLabel->setObjectName(u"speedUnit"_s);
+        valueRow->addWidget(valueLabel);
+        valueRow->addWidget(unitLabel);
+        layout->addLayout(valueRow);
+        return readout;
+    };
+
+    QHBoxLayout *downloadRow = nullptr;
+    QHBoxLayout *uploadRow = nullptr;
+    m_hlayout->addWidget(makeReadout(tr("Download"), ThemeTokens::Token::StDown, m_downloadValue, m_downloadUnit, downloadRow));
+    m_hlayout->addWidget(makeReadout(tr("Upload"), ThemeTokens::Token::StSeed, m_uploadValue, m_uploadUnit, uploadRow));
+    m_hlayout->addSpacing(12);
+
     m_periodLabel = new QLabel(u"<b>" + tr("Period:") + u"</b>");
+    m_periodLabel->setObjectName(u"speedPeriodLabel"_s);
+    m_periodLabel->hide();
 
     m_periodCombobox = new QComboBox();
-    m_periodCombobox->addItem(tr("1 Minute"));
-    m_periodCombobox->addItem(tr("5 Minutes"));
-    m_periodCombobox->addItem(tr("30 Minutes"));
-    m_periodCombobox->addItem(tr("3 Hours"));
-    m_periodCombobox->addItem(tr("6 Hours"));
-    m_periodCombobox->addItem(tr("12 Hours"));
-    m_periodCombobox->addItem(tr("24 Hours"));
+    for (const QString &text : {tr("1m"), tr("5m"), tr("30m"), tr("3h"), tr("6h"), tr("12h"), tr("24h")})
+        m_periodCombobox->addItem(text);
+    m_periodCombobox->hide();
 
-    connect(m_periodCombobox, &QComboBox::currentIndexChanged, this, &SpeedWidget::onPeriodChange);
+    m_periodSegments = new SegmentedControl();
+    m_periodSegments->setObjectName(u"speedPeriodSegments"_s);
+    for (int i = 0; i < m_periodCombobox->count(); ++i)
+        m_periodSegments->addSegment(m_periodCombobox->itemText(i), i);
+    connect(m_periodSegments, &SegmentedControl::currentIndexChanged, this, &SpeedWidget::onPeriodChange);
+    connect(m_periodCombobox, &QComboBox::currentIndexChanged, this, [this](int index)
+    {
+        if (m_periodSegments->currentIndex() != index)
+            m_periodSegments->setCurrentIndex(index);
+    });
 
     m_graphsMenu = new QMenu(this);
     m_graphsMenu->addAction(tr("Total Upload"));
@@ -100,10 +154,14 @@ SpeedWidget::SpeedWidget(PropertiesWidget *parent)
     }
 
     m_graphsButton = new ComboBoxMenuButton(this, m_graphsMenu);
-    m_graphsButton->addItem(tr("Select Graphs"));
+    m_graphsButton->addItem(tr("Graphs"));
+    m_graphsButton->setObjectName(u"graphsMenuButton"_s);
+    m_graphsButton->setFixedHeight(28);
+    m_graphsButton->setProperty("variant", u"ghost"_s);
 
     m_hlayout->addWidget(m_periodLabel);
     m_hlayout->addWidget(m_periodCombobox);
+    m_hlayout->addWidget(m_periodSegments);
     m_hlayout->addStretch();
     m_hlayout->addWidget(m_graphsButton);
 
@@ -142,6 +200,29 @@ void SpeedWidget::update()
     sampleData[SpeedPlotView::TRACKER_DOWN] = btStatus.trackerDownloadRate;
 
     m_plot->pushPoint(sampleData);
+
+    const qreal targetDown = static_cast<qreal>(sampleData[SpeedPlotView::DOWN]);
+    const qreal targetUp = static_cast<qreal>(sampleData[SpeedPlotView::UP]);
+    if (!m_lerpedOnce)
+    {
+        m_downloadDisplay = targetDown;
+        m_uploadDisplay = targetUp;
+        m_lerpedOnce = true;
+    }
+    else
+    {
+        m_downloadDisplay += (targetDown - m_downloadDisplay) * 0.08;
+        m_uploadDisplay += (targetUp - m_uploadDisplay) * 0.08;
+    }
+    const auto setReadout = [](QLabel *valueLabel, QLabel *unitLabel, const qreal bytesPerSecond)
+    {
+        const QString formatted = Utils::Misc::friendlyUnit(static_cast<qint64>(bytesPerSecond), true);
+        const int space = formatted.indexOf(u' ');
+        valueLabel->setText((space > 0) ? formatted.left(space) : formatted);
+        unitLabel->setText((space > 0) ? formatted.mid(space + 1) : QString {});
+    };
+    setReadout(m_downloadValue, m_downloadUnit, m_downloadDisplay);
+    setReadout(m_uploadValue, m_uploadUnit, m_uploadDisplay);
 }
 
 void SpeedWidget::onPeriodChange(int period)
@@ -161,6 +242,7 @@ void SpeedWidget::loadSettings()
 
     const int periodIndex = preferences->getSpeedWidgetPeriod();
     m_periodCombobox->setCurrentIndex(periodIndex);
+    m_periodSegments->setCurrentIndex(periodIndex);
     onPeriodChange(periodIndex);
 
     for (int id = SpeedPlotView::UP; id < SpeedPlotView::NB_GRAPHS; ++id)

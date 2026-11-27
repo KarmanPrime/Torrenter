@@ -29,13 +29,17 @@
 
 #pragma once
 
+#include <QTimer>
+
 #include <QList>
 #include <QWidget>
 
 #include "base/settingvalue.h"
 #include "gui/filterpatternformat.h"
 
+class QLabel;
 class QPushButton;
+class QToolButton;
 class QTreeView;
 
 class DownloadedPiecesBar;
@@ -82,6 +86,8 @@ signals:
 
 public slots:
     void setVisibility(bool visible);
+    void setCurrentTab(int index);
+    void animateSplitterSizes(const QList<int> &target);
     void loadTorrentInfos(BitTorrent::Torrent *torrent);
     void loadDynamicData();
     void clear();
@@ -101,6 +107,10 @@ protected slots:
 
 private slots:
     void configure();
+    void setupGeneralCards();
+    void updateGeneralHeader();
+    void updateTabCounts();
+    void updateContentSelectionLabel();
     void updateSavePath(BitTorrent::Torrent *torrent);
 
 private:
@@ -118,8 +128,21 @@ private:
     DownloadedPiecesBar *m_downloadedPieces = nullptr;
     PieceAvailabilityBar *m_piecesAvailability = nullptr;
     PropTabBar *m_tabBar = nullptr;
+    QWidget *m_tabTrack = nullptr;
+    QToolButton *m_hideButton = nullptr;
+    QLabel *m_detailName = nullptr;
+    QLabel *m_detailPill = nullptr;
+    QLabel *m_detailSummary = nullptr;
+    QLabel *m_detailPiecesMeta = nullptr;
+    QLabel *m_contentSelectedLabel = nullptr;
+    QLabel *m_noHttpSourcesLabel = nullptr;
+    QToolButton *m_addPeersButton = nullptr;
     LineEdit *m_contentFilterLine = nullptr;
     int m_handleWidth = -1;
 
     SettingValue<FilterPatternFormat> m_storeFilterPatternFormat;
+    QTimer m_slideAnimTimer;
+    QList<int> m_slideStartSizes;
+    QList<int> m_slideTargetSizes;
+    int m_slideElapsed = 0;
 };

@@ -30,6 +30,7 @@
 #include "guiaddtorrentmanager.h"
 
 #include <QScreen>
+#include <QTimer>
 
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/torrentdescriptor.h"
@@ -80,6 +81,19 @@ GUIAddTorrentManager::GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Ses
     : GUIApplicationComponent(app, session, parent)
 {
     connect(btSession(), &BitTorrent::Session::metadataDownloaded, this, &GUIAddTorrentManager::onMetadataDownloaded);
+
+#ifdef TORRENTER_QA_HOOKS
+    // QA-only hook for scripted screenshots: open the Add torrent dialog with
+    // a fixture .torrent file without driving a native file chooser.
+    const QByteArray qaTorrent = qgetenv("TORRENTER_QA_ADD");
+    if (!qaTorrent.isEmpty())
+    {
+        QTimer::singleShot(1600, this, [this, qaTorrent]
+        {
+            addTorrent(QString::fromLocal8Bit(qaTorrent.constData()), {}, AddTorrentOption::ShowDialog);
+        });
+    }
+#endif
 }
 
 GUIAddTorrentManager::~GUIAddTorrentManager()

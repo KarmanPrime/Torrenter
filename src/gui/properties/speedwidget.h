@@ -31,10 +31,14 @@
 #include <QComboBox>
 #include <QWidget>
 
+#include <QLocale>
+
+class QFrame;
 class QHBoxLayout;
 class QLabel;
 class QMenu;
 class QVBoxLayout;
+class SegmentedControl;
 
 class PropertiesWidget;
 class SpeedPlotView;
@@ -75,7 +79,16 @@ private:
     QHBoxLayout *m_hlayout = nullptr;
     QLabel *m_periodLabel = nullptr;
     QComboBox *m_periodCombobox = nullptr;
+    SegmentedControl *m_periodSegments = nullptr;
     SpeedPlotView *m_plot = nullptr;
+
+    QLabel *m_downloadValue = nullptr;
+    QLabel *m_downloadUnit = nullptr;
+    QLabel *m_uploadValue = nullptr;
+    QLabel *m_uploadUnit = nullptr;
+    qreal m_downloadDisplay = 0;
+    qreal m_uploadDisplay = 0;
+    bool m_lerpedOnce = false;
 
     ComboBoxMenuButton *m_graphsButton = nullptr;
     QMenu *m_graphsMenu = nullptr;

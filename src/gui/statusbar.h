@@ -28,15 +28,38 @@
 
 #pragma once
 
+#include <QAbstractButton>
+#include <QColor>
 #include <QStatusBar>
 
+class QHBoxLayout;
 class QLabel;
+class QPaintEvent;
 class QPushButton;
+class QWidget;
 
 namespace BitTorrent
 {
     struct SessionStatus;
 }
+
+// 7 px status dot with a 3 px halo at 15% opacity (13 px overall).
+class ConnectionLed final : public QAbstractButton
+{
+    Q_OBJECT
+    Q_DISABLE_COPY_MOVE(ConnectionLed)
+
+public:
+    explicit ConnectionLed(QWidget *parent = nullptr);
+
+    void setStatusColor(const QColor &color);
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
+
+private:
+    QColor m_color;
+};
 
 class StatusBar final : public QStatusBar
 {
@@ -44,7 +67,7 @@ class StatusBar final : public QStatusBar
     Q_DISABLE_COPY_MOVE(StatusBar)
 
 public:
-    StatusBar(QWidget *parent = nullptr);
+    explicit StatusBar(QWidget *parent = nullptr);
 
 signals:
     void alternativeSpeedsButtonClicked();
@@ -68,14 +91,17 @@ private:
     void updateExternalAddressesVisibility();
     void updateSpeedLabels();
 
+    QWidget *m_content = nullptr;
+    QWidget *m_leftCluster = nullptr;
+    QWidget *m_rightCluster = nullptr;
+    ConnectionLed *m_connectionLed = nullptr;
+    QLabel *m_connectionLbl = nullptr;
+    QLabel *m_DHTLbl = nullptr;
+    QLabel *m_freeDiskSpaceLbl = nullptr;
+    QLabel *m_lastExternalIPsLbl = nullptr;
     QPushButton *m_dlSpeedLbl = nullptr;
     QPushButton *m_upSpeedLbl = nullptr;
-    QLabel *m_freeDiskSpaceLbl = nullptr;
-    QWidget *m_freeDiskSpaceSeparator = nullptr;
-    QLabel *m_lastExternalIPsLbl = nullptr;
-    QWidget *m_lastExternalIPsSeparator = nullptr;
-    QLabel *m_DHTLbl = nullptr;
-    QWidget *m_DHTSeparator = nullptr;
-    QPushButton *m_connecStatusLblIcon = nullptr;
+    QLabel *m_dlTotalLbl = nullptr;
+    QLabel *m_upTotalLbl = nullptr;
     QPushButton *m_altSpeedsBtn = nullptr;
 };

@@ -35,6 +35,7 @@
 #include "gui/torrentcategorydialog.h"
 #include "gui/uithememanager.h"
 #include "gui/utils.h"
+#include "gui/sidebaritemdelegate.h"
 #include "categoryfiltermodel.h"
 #include "categoryfilterproxymodel.h"
 
@@ -61,7 +62,9 @@ CategoryFilterWidget::CategoryFilterWidget(QWidget *parent)
     auto *proxyModel = new CategoryFilterProxyModel(this);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     proxyModel->setSourceModel(new CategoryFilterModel(this));
+    setProperty("torrenterFilterView", true);
     setModel(proxyModel);
+    setItemDelegate(new SidebarItemDelegate(this));
     setFrameShape(QFrame::NoFrame);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

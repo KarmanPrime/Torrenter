@@ -178,7 +178,16 @@ void PiecesBar::mouseMoveEvent(QMouseEvent *e)
 void PiecesBar::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
+    // Phase C: the Details panel bars are 10 px rounded runs with no border.
+    const bool rounded = (objectName() == u"torrenterPiecesBar"_s);
+    if (rounded)
+    {
+        QPainterPath shape;
+        shape.addRoundedRect(rect(), 5, 5);
+        painter.setClipPath(shape);
+    }
     QRect imageRect(borderWidth, borderWidth, width() - 2 * borderWidth, height() - 2 * borderWidth);
+    painter.setPen(Qt::NoPen);
     if (m_image.isNull())
     {
         painter.setBrush(backgroundColor());
@@ -200,10 +209,13 @@ void PiecesBar::paintEvent(QPaintEvent *)
         painter.fillRect(targetHighlightRect, highlightedPieceColor());
     }
 
-    QPainterPath border;
-    border.addRect(0, 0, width(), height());
-    painter.setPen(borderColor());
-    painter.drawPath(border);
+    if (!rounded)
+    {
+        QPainterPath border;
+        border.addRect(0, 0, width(), height());
+        painter.setPen(borderColor());
+        painter.drawPath(border);
+    }
 }
 
 void PiecesBar::redraw()

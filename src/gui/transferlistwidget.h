@@ -29,17 +29,23 @@
 
 #pragma once
 
+#include <QTimer>
+
 #include <functional>
 
 #include <QtContainerFwd>
 #include <QTreeView>
+#include <QList>
 
 #include "base/bittorrent/infohash.h"
 #include "guiapplicationcomponent.h"
 #include "transferlistmodel.h"
 
 class Path;
+class QToolButton;
 class TransferListSortModel;
+class EmptyStateWidget;
+class DropHighlightOverlay;
 
 namespace BitTorrent
 {
@@ -63,6 +69,7 @@ public:
     TransferListModel *getSourceModel() const;
 
 public slots:
+    void setCompactMode(bool enabled);
     void setSelectionCategory(const QString &category);
     void addSelectionTag(const Tag &tag);
     void removeSelectionTag(const Tag &tag);
@@ -108,6 +115,8 @@ public slots:
 
 signals:
     void currentTorrentChanged(BitTorrent::Torrent *torrent);
+    void addTorrentRequested();
+    void addMagnetLinkRequested();
 
 private slots:
     void torrentDoubleClicked();
@@ -121,11 +130,18 @@ private slots:
     void askNewCategoryForSelection();
     void saveSettings();
 
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 private:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void drawRow(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
     void openPreviewSelectDialog(const BitTorrent::Torrent *torrent);
     bool previewTorrentFile(const BitTorrent::Torrent *torrent, int fileIndex, QWidget *errorParent);
     QModelIndex mapToSource(const QModelIndex &index) const;
@@ -142,7 +158,19 @@ private:
     void applyToSelectedTorrents(const std::function<void (BitTorrent::Torrent *const)> &fn);
     QList<BitTorrent::Torrent *> getVisibleTorrents() const;
     int visibleColumnsCount() const;
+    void updateEmptyState();
+    void clearEmptyStateFilter();
 
+    EmptyStateWidget *m_emptyState = nullptr;
+    DropHighlightOverlay *m_dropOverlay = nullptr;
+    QToolButton *m_columnChooser = nullptr;
+    bool m_dropActive = false;
     TransferListModel *m_listModel = nullptr;
     TransferListSortModel *m_sortFilterModel = nullptr;
+    bool m_compactMode = false;
+    QList<bool> m_preCompactHiddenColumns;
+    QTimer m_hoverFadeTimer;
+    int m_hoverFadeRow = -1;
+    qreal m_hoverFadeAlpha = 0;
+    qreal m_hoverFadeTarget = 0;
 };

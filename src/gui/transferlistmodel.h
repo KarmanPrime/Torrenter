@@ -100,7 +100,8 @@ public:
     enum DataRole
     {
         UnderlyingDataRole = Qt::UserRole,
-        AdditionalUnderlyingDataRole
+        AdditionalUnderlyingDataRole,
+        FileTypeGlyphRole  // design 01-main-dark: monochrome file-type glyph id
     };
 
     explicit TransferListModel(QObject *parent = nullptr);
@@ -127,6 +128,8 @@ private:
     void loadUIThemeResources();
     QString displayValue(const BitTorrent::Torrent *torrent, int column) const;
     QVariant internalValue(const BitTorrent::Torrent *torrent, int column, bool alt) const;
+    QString fileTypeGlyph(const BitTorrent::Torrent *torrent) const;
+    mutable QHash<const BitTorrent::Torrent *, QString> m_fileTypeGlyphCache;
     QIcon getIconByState(BitTorrent::TorrentState state) const;
 
     using TorrentList = boost::multi_index_container<

@@ -123,6 +123,7 @@ add_library(qbt_gui STATIC
     trackerlist/trackerlistwidget.h
     trackersadditiondialog.h
     transferlistdelegate.h
+    emptystatewidget.h
     transferlistfilters/basefilterwidget.h
     transferlistfilters/categoryfiltermodel.h
     transferlistfilters/categoryfilterproxymodel.h
@@ -147,6 +148,9 @@ add_library(qbt_gui STATIC
     uithemesource.h
     utils.h
     utils/keysequence.h
+    optionslayouthelper.h
+    widgets/segmentedcontrol.h
+    widgets/toggleswitch.h
     watchedfolderoptionsdialog.h
     watchedfoldersmodel.h
     windowstate.h
@@ -229,6 +233,7 @@ add_library(qbt_gui STATIC
     trackerlist/trackerlistwidget.cpp
     trackersadditiondialog.cpp
     transferlistdelegate.cpp
+    emptystatewidget.cpp
     transferlistfilters/basefilterwidget.cpp
     transferlistfilters/categoryfiltermodel.cpp
     transferlistfilters/categoryfilterproxymodel.cpp
@@ -243,14 +248,23 @@ add_library(qbt_gui STATIC
     transferlistfilterswidgetitem.cpp
     transferlistmodel.cpp
     transferlistsortmodel.cpp
+    transferlistheaderview.cpp
     transferlistwidget.cpp
     tristateaction.cpp
     tristatewidget.cpp
     uithemedialog.cpp
     uithememanager.cpp
     uithemesource.cpp
+    themetokens.cpp
+    torrentericons.cpp
+    torrentericons.h
+    windowsthemehelper.cpp
+    sidebaritemdelegate.cpp
     utils.cpp
     utils/keysequence.cpp
+    widgets/segmentedcontrol.cpp
+    widgets/toggleswitch.cpp
+    optionslayouthelper.cpp
     watchedfolderoptionsdialog.cpp
     watchedfoldersmodel.cpp
 
@@ -258,16 +272,21 @@ add_library(qbt_gui STATIC
     ${UI_HEADERS}
 )
 
-target_sources(qbt_gui INTERFACE about.qrc)
+target_sources(qbt_gui INTERFACE about.qrc fonts.qrc uitheme.qrc ../icons/LICENSE-lucide.txt)
 
 # UI headers will be generated in ${CMAKE_CURRENT_BINARY_DIR}
 target_include_directories(qbt_gui PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+if (WIN32)
+    target_link_libraries(qbt_gui PRIVATE dwmapi)
+endif()
 
 target_link_libraries(qbt_gui
     PRIVATE
         qbt_base
     PUBLIC
         Qt::Gui
+        Qt::Svg
         Qt::Widgets
 )
 

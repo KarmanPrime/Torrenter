@@ -1,0 +1,399 @@
+/* Torrenter base stylesheet TEMPLATE.
+   Placeholders of the form $ + {name} are replaced at runtime from ThemeTokens (dark or light set) before qApp->setStyleSheet().
+   Keep selectors shallow; custom painting (progress, pills, rows, sidebar) lives in delegates, not QSS. */
+
+* { font-family: "Inter"; font-size: 9pt; }
+QMainWindow, QDialog { background: ${window}; color: ${text1}; }
+QToolTip { background: ${tooltipBg}; color: ${tooltipText}; border: 1px solid ${lineStrong}; border-radius: 7px; padding: 5px 8px; }
+
+/* Menu bar + menus */
+/* Explicit family: menus/toolbars can otherwise fall back to the platform font */
+QMenuBar, QMenu, QMenu::item, QToolBar, QToolButton, QPushButton, QLabel, QLineEdit,
+QTreeView, QListView, QTableView, QTabBar, QTabWidget, QStatusBar, QHeaderView, QDockWidget
+{ font-family: "Inter"; font-size: 9pt; }
+
+QMenuBar { font: 9pt "Inter"; background: ${chrome}; color: ${text2}; padding: 2px 6px; border: none; }
+QMenuBar::item { padding: 3px 8px; border-radius: 5px; background: transparent; }
+QMenuBar::item:selected, QMenuBar::item:pressed { background: ${pressed}; color: ${text1}; }
+QMenu { background: ${overlay}; border: 1px solid ${line}; border-radius: 10px; padding: 5px; }
+QMenu::item { padding: 6px 28px 6px 10px; border-radius: 6px; color: ${text1}; }
+QMenu::item:selected { background: ${pressed}; }
+QMenu::item:disabled { color: ${text4}; }
+QMenu::separator { height: 1px; background: ${line}; margin: 5px 6px; }
+QMenu::icon { padding-left: 8px; }
+
+/* Toolbar */
+QToolBar#toolBar { background: ${chrome}; border: none; border-bottom: 1px solid ${lineSubtle}; padding: 10px 12px; spacing: 6px; }
+QToolBar::separator { width: 1px; background: ${line}; margin: 6px 6px; }
+QToolButton { background: transparent; border: none; border-radius: 8px; padding: 8px; color: ${text2}; }
+QToolButton:hover { background: ${hover}; }
+QToolButton:pressed { background: ${pressed}; }
+QToolButton:checked { background: ${accentSoft}; }
+QToolButton:focus { outline: none; }                     /* focus ring painted by FocusRing helper */
+
+/* Buttons */
+QPushButton { min-height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid ${line}; background: ${raised}; color: ${text1}; font-weight: 500; }
+QPushButton:hover { background: ${hover}; border-color: ${lineStrong}; }
+QPushButton:pressed { background: ${pressed}; }
+QPushButton:disabled { color: ${text4}; background: ${raised}; }
+QPushButton:default, QPushButton[variant="primary"] { background: ${accent}; color: ${onAccent}; border: 1px solid ${accentPress}; }
+QPushButton:default:hover, QPushButton[variant="primary"]:hover { background: ${accentHover}; }
+QPushButton[variant="danger"] { background: ${stError}; color: ${onDanger}; border: none; }
+QPushButton[variant="ghost"] { background: transparent; border: none; color: ${text2}; }
+
+/* Inputs */
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit {
+  min-height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid ${line}; background: ${raised}; color: ${text1};
+  selection-background-color: ${selectedStrong}; selection-color: ${text1}; }
+QPlainTextEdit, QTextEdit { padding: 8px 10px; }
+QLineEdit:hover, QComboBox:hover, QSpinBox:hover { border-color: ${lineStrong}; }
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus { border: 1px solid ${accent}; }
+QLineEdit[state="error"] { border: 1px solid ${stError}; }
+QComboBox::drop-down { width: 24px; border: none; }
+QComboBox::down-arrow { image: url(:/icons/chevrons-up-down.svg); width: 14px; height: 14px; }
+QComboBox QAbstractItemView { background: ${overlay}; border: 1px solid ${line}; border-radius: 10px; padding: 4px; outline: 0; }
+
+/* Check / radio (toggle switch is a custom widget: ToggleSwitch) */
+QCheckBox, QRadioButton { spacing: 8px; color: ${text1}; }
+QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid ${lineStrong}; background: transparent; }
+QCheckBox::indicator:checked { background: ${accent}; border-color: ${accent}; image: url(:/icons/check-on-accent.svg); }
+QCheckBox::indicator:indeterminate { background: ${accent}; border-color: ${accent}; image: url(:/icons/minus-on-accent.svg); }
+QRadioButton::indicator { width: 16px; height: 16px; border-radius: 8px; border: 1.5px solid ${lineStrong}; }
+QRadioButton::indicator:checked { border: 5px solid ${accent}; background: ${onAccent}; }
+
+/* Group boxes become cards */
+QGroupBox { background: ${raised}; border: 1px solid ${lineSubtle}; border-radius: 10px; margin-top: 26px; padding: 12px 16px; }
+QGroupBox::title { subcontrol-origin: margin; left: 4px; top: 4px; color: ${text2}; font-weight: 600; }
+
+/* Item views (base; rows are painted by delegates/drawRow) */
+QTreeView, QListView, QTableView { background: ${surface}; border: none; color: ${text1}; outline: 0; alternate-background-color: ${alternateRow}; }
+QTreeView::item, QListView::item { min-height: 36px; border: none; }
+#transferList::item { min-height: 36px; }   /* Comfortable density (design 01-main-dark) */
+QTreeView::item:selected, QListView::item:selected { background: transparent; }   /* selection painted in drawRow */
+QHeaderView { background: ${surface}; border: none; }
+QHeaderView::section { background: ${surface}; color: ${text3}; font-size: 9pt; font-weight: 500; border: none; border-bottom: 1px solid ${lineSubtle}; padding: 0 8px; min-height: 34px; }
+QHeaderView::section:hover { color: ${text2}; }
+QHeaderView::up-arrow, QHeaderView::down-arrow { width: 12px; height: 12px; }
+
+/* Scrollbars: thin, overlay-like */
+QScrollBar:vertical { width: 10px; background: transparent; margin: 2px; }
+QScrollBar:horizontal { height: 10px; background: transparent; margin: 2px; }
+QScrollBar::handle { background: ${lineStrong}; border-radius: 3px; min-height: 32px; min-width: 32px; }
+QScrollBar::handle:hover { background: ${text4}; }
+QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page { background: none; width: 0; height: 0; }
+
+/* Splitter */
+QSplitter::handle { background: ${surface}; }
+QSplitter::handle:vertical {
+  height: 9px; background: ${surface} url(:/icons/grip-horizontal-line.svg) center center no-repeat; }
+QSplitter::handle:horizontal { width: 1px; background: ${lineSubtle}; }
+
+/* Main tabs (Transfers / Search / RSS / Log) and dialog tabs */
+QTabWidget::pane { border: none; }
+QTabBar::tab { background: transparent; color: ${text2}; padding: 6px 12px; border-radius: 6px; margin: 4px 2px; font-weight: 500; }
+QTabBar::tab:selected { background: ${pressed}; color: ${text1}; }
+QTabBar::tab:hover:!selected { background: ${hover}; }
+
+/* Status bar — geometry, spacing and label colors are owned by StatusBar (statusbar.cpp). */
+QStatusBar { background: ${chrome}; color: ${text3}; border-top: 1px solid ${lineSubtle}; min-height: 30px; font-family: "Inter"; font-size: 9pt; }
+QStatusBar::item { border: none; margin: 0; padding: 0; }
+QStatusBar QLabel { color: ${text3}; font-variant-numeric: tabular-nums; }
+QStatusBar QPushButton { background: transparent; border: none; border-radius: 6px; }
+QStatusBar QPushButton:hover { background: ${hover}; }
+
+/* Sidebar filter lists */
+TransferListFiltersWidget, TransferListFiltersWidget QListWidget, TransferListFiltersWidget QTreeView { background: ${chrome}; border: none; }
+
+/* Options dialog */
+OptionsDialog QListWidget#tabSelection { background: ${chrome}; border: none; border-right: 1px solid ${lineSubtle}; padding: 8px; }
+OptionsDialog QListWidget#tabSelection::item { min-height: 30px; border-radius: 7px; padding: 0 8px; color: ${text2}; }
+OptionsDialog QListWidget#tabSelection::item:selected { background: ${pressed}; color: ${text1}; }
+
+/* Phase 1 QA: panel separation, accent, focus */
+QMainWindow > QWidget { background: ${window}; }
+TransferListFiltersWidget, BaseFilterWidget { background: ${chrome}; border-right: 1px solid ${lineSubtle}; }
+BaseFilterWidget::item { background: ${chrome}; color: ${text2}; min-height: 30px; }
+BaseFilterWidget::item:selected { background: transparent; }  /* painted by SidebarItemDelegate */
+#filterSectionHeader { color: ${text3}; font-size: 11px; font-weight: 600; padding: 2px 8px; }
+QTableView, QTreeView { background: ${surface}; alternate-background-color: ${surface}; }
+QHeaderView::section { color: ${text3}; font-size: 12px; font-weight: 500; }
+QToolBar#toolBar { padding-right: 12px; }
+QToolButton[variant="primary"] { background: ${accent}; color: ${onAccent}; border-radius: 8px; padding: 6px 12px; }
+QToolButton[variant="primary"]:hover { background: ${accentHover}; }
+QToolButton[variant="primary"]:pressed { background: ${accentPress}; }
+QToolButton:focus, QPushButton:focus, QLineEdit:focus { outline: 2px solid ${focus}; outline-offset: 2px; }
+QScrollBar:vertical, QScrollBar:horizontal { border: none; background: transparent; }
+QScrollBar::handle { border-radius: 3px; min-height: 24px; min-width: 24px; }
+
+#emptyStateOverlay { background: ${surface}; }
+#emptyStateTitle { color: ${text1}; font-size: 20px; font-weight: 600; }
+#emptyStateBody { color: ${text2}; font-size: 13.5px; }
+#emptyStateHelp { color: ${text3}; font-size: 12px; }
+#emptyPrimaryLabel { color: ${onAccent}; font-size: 13px; font-weight: 600; }
+#emptySecondaryLabel { color: ${text1}; font-size: 13px; font-weight: 600; }
+#kbdChip { color: ${text3}; background: ${pressed}; border-radius: 5px; padding: 1px 6px; font-size: 11px; }
+#kbdChipOnAccent { color: ${onAccent}; background: rgba(0,0,0,90); border-radius: 5px; padding: 1px 6px; font-size: 11px; }
+
+/* Phase F: remaining dialogs and secondary tabs */
+QDialog { background: ${overlay}; color: ${text1}; font-family: "Inter"; font-size: 13px; }
+QDialog QLabel { color: ${text2}; }
+QDialog QLineEdit, QDialog QComboBox, QDialog QSpinBox, QDialog QDoubleSpinBox,
+QDialog QTextEdit, QDialog QPlainTextEdit, QDialog FsPathEdit {
+  background: ${dialogField}; color: ${text1}; border: 1px solid ${line};
+  border-radius: 8px; padding: 0 10px; min-height: 32px; selection-background-color: ${selectedStrong}; }
+QDialog QLineEdit:hover, QDialog QComboBox:hover, QDialog QSpinBox:hover,
+QDialog QDoubleSpinBox:hover { border-color: ${lineStrong}; }
+QDialog QPushButton { min-height: 32px; border-radius: 8px; padding: 0 14px; color: ${text1};
+  background: ${raised}; border: 1px solid ${line}; }
+QDialog QPushButton:default, QDialog QPushButton[variant="primary"] {
+  background: ${accent}; color: ${onAccent}; border: none; font-weight: 500; }
+QDialog QPushButton[variant="ghost"], QDialog QPushButton[variant="ghost"]:default,
+QDialog QPushButton[variant="ghost"]:focus { background: transparent; color: ${text2}; border: none; }
+QDialog QPushButton[variant="danger"] { background: ${stError}; color: ${onDanger}; border: none; }
+QDialog QGroupBox { color: ${text2}; font-size: 12.5px; font-weight: 600; border: none; }
+QDialog QCheckBox, QDialog QRadioButton { color: ${text1}; }
+QDialog QTableView, QDialog QTreeView, QDialog QListView, QDialog QTableWidget, QDialog QTreeWidget {
+  background: ${surface}; color: ${text1}; border: 1px solid ${lineSubtle}; border-radius: 10px; }
+QWidget#searchTab, QWidget#rssTab, QWidget#executionLogTab, QWidget#logTab { background: ${surface}; color: ${text1}; }
+QTabWidget#mainTabWidget QTabBar::tab { background: ${chrome}; color: ${text2}; padding: 6px 14px; }
+QTabWidget#mainTabWidget QTabBar::tab:selected { color: ${text1}; background: ${pressed}; border-radius: 7px; }
+
+/* Phase G: compact window (<960px) */
+QWidget#torrenterCompactChips { background: ${chrome}; border-bottom: 1px solid ${lineSubtle}; }
+QToolButton#torrenterStatusChip { background: ${pressed}; color: ${text2}; border: none;
+  border-radius: 6px; padding: 0 10px; font-size: 12px; font-weight: 500; }
+QToolButton#torrenterStatusChip[variant="chipActive"] { background: ${accentSoft}; color: ${accentText}; }
+QWidget#torrenterCompactDrawer { background: ${overlay}; border-right: 1px solid ${line}; }
+QToolButton#torrenterCompactDrawerToggle, QToolButton#torrenterCompactOverflow {
+  background: transparent; border: none; border-radius: 7px; padding: 5px; }
+QToolBar[compact="true"] QToolButton#torrenterCompactOverflow { margin-left: 12px; }
+QToolButton#torrenterAddButton[compactAdd="true"]::menu-button { width: 0; border: none; background: transparent; }
+QToolBar[compact="true"] QToolButton#torrenterAddButton { padding-right: 8px; }
+
+/* Phase E: Speed tab readouts and period selector */
+SpeedWidget QWidget#speedReadout { background: transparent; }
+SpeedWidget QLabel#speedCaption { color: ${text3}; font-size: 12px; }
+SpeedWidget QLabel#speedValue { color: ${text1}; font-size: 22px; font-weight: 600; }
+SpeedWidget QLabel#speedUnit { color: ${text2}; font-size: 13px; font-weight: 500; }
+SpeedWidget QLabel#speedPeriodLabel { color: ${text2}; font-size: 12px; }
+SegmentedControl#speedPeriodSegments QPushButton#segment { min-width: 38px; padding: 0 8px; }
+QComboBox#graphsMenuButton { color: ${text2}; font-size: 12.5px; min-height: 28px; max-height: 28px;
+  border: 1px solid ${line}; border-radius: 7px; background: ${raised}; padding: 0 10px; }
+QComboBox#graphsMenuButton:hover { color: ${text1}; background: ${hover}; border-color: ${lineStrong}; }
+SpeedPlotView { background: ${surface}; border: none; }
+QToolTip { background: ${tooltipBg}; color: ${tooltipText}; border: 1px solid ${lineStrong}; border-radius: 7px; padding: 6px 9px; }
+
+/* Phase 2: segmented tabs */
+QTabBar { background: transparent; border: none; }
+QTabBar::tab { background: transparent; color: ${text2}; padding: 7px 14px; margin: 0 2px; border-radius: 8px; font-family: "Inter"; font-size: 9pt; }
+QTabBar::tab:hover { color: ${text1}; background: ${hover}; }
+QTabBar::tab:selected { background: ${raised}; color: ${text1}; }
+/* Phase 2: + Add split button arrow */
+QToolButton[variant="primary"] { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+/* Phase 4: dialogs (mockups 04 / 04b / 05) */
+QDialog#AddNewTorrentDialog { background: ${overlay}; }
+QDialog#AddNewTorrentDialog QFrame#addHeader { background: transparent; border: none; }
+QDialog#AddNewTorrentDialog QLabel#addHeaderTile {
+  background: ${accentSoft}; color: ${accentText}; border-radius: 10px;
+  font-size: 14px; font-weight: 600; qproperty-alignment: AlignCenter; }
+QDialog#AddNewTorrentDialog QLabel#addHeaderName { color: ${text1}; font-size: 16px; font-weight: 600; }
+QDialog#AddNewTorrentDialog QLabel#addHeaderMeta { color: ${text3}; font-size: 12.5px; }
+QDialog#AddNewTorrentDialog QToolButton#addHeaderClose { background: transparent; border: none; border-radius: 7px; padding: 5px; color: ${text2}; }
+QDialog#AddNewTorrentDialog QScrollArea, QDialog#AddNewTorrentDialog QScrollArea > QWidget { background: transparent; }
+QDialog#AddNewTorrentDialog QSplitter { background: transparent; }
+QDialog#AddNewTorrentDialog QSplitter > QWidget { background: transparent; }
+QDialog#AddNewTorrentDialog QLabel#labelSaveTo, QDialog#AddNewTorrentDialog QLabel#labelCategory,
+QDialog#AddNewTorrentDialog QLabel#tagsLabel, QDialog#AddNewTorrentDialog QLabel#labelTorrentManagementMode,
+QDialog#AddNewTorrentDialog QLabel#contentLayoutLabel, QDialog#AddNewTorrentDialog QLabel#stopConditionLabel {
+  color: ${text2}; font-size: 12px; font-weight: 500; }
+QDialog#AddNewTorrentDialog QFrame#groupBoxSavePath { background: transparent; border: none; }
+QDialog#AddNewTorrentDialog QWidget#savePath, QDialog#AddNewTorrentDialog QWidget#downloadPath {
+  background: ${dialogField}; border: 1px solid ${line}; border-radius: 8px; }
+QDialog#AddNewTorrentDialog QGroupBox#groupBoxDownloadPath { background: transparent; border: none; margin: 0; padding: 0; }
+QDialog#AddNewTorrentDialog QGroupBox#groupBoxDownloadPath::indicator { width: 0; height: 0; border: none; }
+QDialog#AddNewTorrentDialog QFrame#groupBoxSettings { background: ${raised}; border: 1px solid ${lineSubtle}; border-radius: 10px; }
+QDialog#AddNewTorrentDialog QFrame#cardSeparator, QDialog#AddNewTorrentDialog QFrame#cardSeparator1,
+QDialog#AddNewTorrentDialog QFrame#cardSeparator2, QDialog#AddNewTorrentDialog QFrame#cardSeparator3,
+QDialog#AddNewTorrentDialog QFrame#cardSeparator4 { background: ${lineSubtle}; }
+QDialog#AddNewTorrentDialog QFrame#freeSpaceBar { background: ${track}; border-radius: 2px; }
+QDialog#AddNewTorrentDialog QFrame#freeSpaceFill { background: ${accent}; border-radius: 2px; }
+QDialog#AddNewTorrentDialog QLabel#freeSpaceHelp, QDialog#AddNewTorrentDialog QLabel#selectionInfoLabel,
+QDialog#AddNewTorrentDialog QLabel#hashInfoLabel { color: ${text3}; font-size: 12.5px; }
+QDialog#AddNewTorrentDialog QToolButton#moreOptionsButton { color: ${text2}; font-size: 12px; padding: 2px 0; }
+ToggleSwitch, SegmentedControl, QDialog#AddNewTorrentDialog QCheckBox { background: transparent; border: none; }
+SegmentedControl QPushButton#segment, QDialog#AddNewTorrentDialog QPushButton#segment {
+  min-height: 26px; max-height: 28px; border: none; background: transparent;
+  border-radius: 7px; padding: 0 10px; color: ${text2}; font-size: 12.5px; font-weight: 500; }
+SegmentedControl QPushButton#segment:checked, QDialog#AddNewTorrentDialog QPushButton#segment:checked { color: ${text1}; }
+QDialog#AddNewTorrentDialog QPushButton#buttonSelectAll, QDialog#AddNewTorrentDialog QPushButton#buttonSelectNone {
+  min-height: 26px; max-height: 28px; padding: 0 10px; }
+QDialog#AddNewTorrentDialog QLineEdit#contentFilter { min-height: 32px; }
+QDialog#AddNewTorrentDialog QTreeView#contentTreeView {
+  background: ${surface}; border: 1px solid ${lineSubtle}; border-radius: 10px;
+  font-family: "Inter"; font-size: 9pt; }
+QDialog#AddNewTorrentDialog QTreeView#contentTreeView::item { min-height: 32px; border: none; }
+QDialog#AddNewTorrentDialog QHeaderView::section { background: ${surface}; color: ${text3}; min-height: 30px; }
+QDialog#AddNewTorrentDialog QFrame#footerHairline { background: ${lineSubtle}; }
+QDialog#AddNewTorrentDialog QDialogButtonBox { border: none; }
+QDialog#AddNewTorrentDialog QPushButton, QDialog#DownloadFromURLDialog QPushButton, QDialog#OptionsDialog QPushButton { min-height: 32px; border-radius: 8px; }
+QDialog#AddNewTorrentDialog QPushButton[variant="ghost"], QDialog#DownloadFromURLDialog QPushButton[variant="ghost"],
+QDialog#OptionsDialog QPushButton[variant="ghost"] { background: transparent; border: none; color: ${text2}; }
+QDialog#AddNewTorrentDialog QPushButton[variant="primary"], QDialog#DownloadFromURLDialog QPushButton[variant="primary"],
+QDialog#OptionsDialog QPushButton[variant="primary"] { background: ${accent}; color: ${onAccent}; border: 1px solid ${accentPress}; }
+QDialog#AddNewTorrentDialog QPushButton[variant="primary"]:hover, QDialog#DownloadFromURLDialog QPushButton[variant="primary"]:hover,
+QDialog#OptionsDialog QPushButton[variant="primary"]:hover { background: ${accentHover}; }
+
+QDialog#DownloadFromURLDialog { background: ${overlay}; border: 1px solid ${line}; border-radius: 14px; }
+QDialog#DownloadFromURLDialog QFrame#linksHeader { background: transparent; border: none; }
+QDialog#DownloadFromURLDialog QLabel#linksHeaderTile { background: ${accentSoft}; color: ${accentText}; border-radius: 9px;
+  qproperty-alignment: AlignCenter; font-weight: 600; }
+QDialog#DownloadFromURLDialog QLabel#linksHeaderTitle { color: ${text1}; font-size: 14px; font-weight: 600; }
+QDialog#DownloadFromURLDialog QLabel#linksHeaderHelp { color: ${text3}; font-size: 12px; }
+QDialog#DownloadFromURLDialog QTextEdit#textUrls { min-height: 112px; max-height: 112px; background: ${raised};
+  border: 1px solid ${lineStrong}; border-radius: 8px; font-family: "Inter"; font-size: 12.5px; }
+/* Phase B: crisp 1 px accent focus ring on the text area; no stray mint
+   focus outline under the primary button. */
+QDialog#DownloadFromURLDialog QTextEdit#textUrls:focus {
+  border: 1px solid ${accent}; outline: none; }
+QDialog#DownloadFromURLDialog QPushButton:focus { outline: none; }
+QDialog#DownloadFromURLDialog QPushButton[variant="primary"] { border: none; }
+QDialog#DownloadFromURLDialog QListWidget#parsedLinks { background: transparent; border: none; }
+QDialog#DownloadFromURLDialog QListWidget#parsedLinks::item { min-height: 30px; border-radius: 7px; }
+QDialog#DownloadFromURLDialog QLabel#linksCount { color: ${text3}; font-size: 12.5px; }
+QDialog#DownloadFromURLDialog QLabel#parsedName { color: ${text1}; font-size: 12.5px; }
+QDialog#DownloadFromURLDialog QLabel#parsedType { color: ${text3}; font-size: 12px; }
+
+QDialog#OptionsDialog { background: ${overlay}; }
+QDialog#OptionsDialog QLabel#settingsNavHeading { color: ${text1}; font-size: 15px; font-weight: 600; padding: 2px 10px 10px; }
+QDialog#OptionsDialog QLineEdit#settingsSearch { min-height: 30px; margin: 0 2px 10px; }
+QDialog#OptionsDialog QLabel#settingsVersion { color: ${text3}; font-size: 12px; padding: 0 10px; }
+QDialog#OptionsDialog QListWidget#tabSelection::item { min-height: 30px; border-radius: 7px; padding-left: 32px; }
+QDialog#OptionsDialog QLabel#settingsPageTitle { color: ${text1}; font-size: 20px; font-weight: 600; }
+QDialog#OptionsDialog QLabel#settingsPageDescription { color: ${text3}; font-size: 12.5px; }
+QDialog#OptionsDialog QLabel#settingsRestartHint { color: ${text3}; font-size: 12px; }
+
+
+/* Phase A: Options modal - real cards, rows and footer (HANDOFF 5.6 / 05-preferences) */
+QWidget#settingsNavPane { background: ${chrome}; border-right: 1px solid ${lineSubtle}; }
+QDialog#OptionsDialog QListWidget#tabSelection::item {
+  min-height: 30px; max-height: 30px; border-radius: 7px;
+  padding: 0 8px 0 10px; color: ${text2}; font-size: 13px; }
+QDialog#OptionsDialog QListWidget#tabSelection::item:selected { background: ${pressed}; color: ${text1}; }
+QDialog#OptionsDialog QLabel#settingsNavHeading { color: ${text1}; font-size: 15px; font-weight: 600; padding: 2px 6px 10px; }
+QDialog#OptionsDialog QLineEdit#settingsSearch { min-height: 32px; margin: 0 0 10px; }
+QDialog#OptionsDialog QLabel#settingsVersion { color: ${text3}; font-size: 12px; padding: 0 6px; }
+QDialog#OptionsDialog QToolButton#settingsClose {
+  background: transparent; border: none; color: ${text2};
+  font-family: "Inter"; font-size: 22px; min-height: 28px; padding: 0 6px; }
+QDialog#OptionsDialog QToolButton#settingsClose:hover { background: ${hover}; color: ${text1}; }
+QDialog#OptionsDialog QGroupBox[settingsCard="true"] {
+  background: ${raised}; border: 1px solid ${lineSubtle}; border-radius: 10px;
+  margin-top: 0; padding: 0; }
+QDialog#OptionsDialog QGroupBox[settingsCard="true"]::title { color: transparent; }
+/* The header ToggleSwitch replaces the native checkable indicator. */
+QGroupBox[settingsCard="true"]::indicator {
+  width: 0px; height: 0px; border: none; background: transparent; image: none; }
+QDialog#OptionsDialog QLabel#settingsCardTitle {
+  color: ${text2}; font-size: 12.5px; font-weight: 600; padding: 0 4px; }
+QDialog#OptionsDialog QLabel#settingsCardTitle[searchMatch="true"] {
+  color: ${accentText}; background: ${accentSoft}; border-radius: 4px; }
+QWidget#settingsGroup, QWidget#settingsRow { background: transparent; }
+QFrame#settingsRowHairline, QFrame#settingsFooterHairline {
+  background: ${lineSubtle}; border: none; }
+QWidget#settingsFooter { background: ${overlay}; }
+QDialog#OptionsDialog QDialogButtonBox { border: none; }
+QDialog#OptionsDialog QLabel#settingsRestartHint { color: ${text3}; font-size: 12px; }
+QLabel#settingsInfoIcon {
+  background: ${accentSoft}; color: ${accentText}; border-radius: 8px;
+  min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px;
+  font-size: 11px; font-weight: 700; qproperty-alignment: AlignCenter; }
+SegmentedControl#colorSchemeSegments { min-height: 30px; max-height: 30px; }
+#advancedSettingsTable {
+  background: ${surface}; border: 1px solid ${lineSubtle}; border-radius: 10px; }
+#advancedSettingsTable::item { min-height: 52px; padding: 0 16px; border-bottom: 1px solid ${lineSubtle}; }
+#advancedSettingsTable QHeaderView::section { background: ${raised}; color: ${text3};
+  font-size: 12.5px; font-weight: 600; padding: 0 16px; min-height: 44px;
+  border: none; border-bottom: 1px solid ${lineSubtle}; }
+#advancedSettingsTable QComboBox, #advancedSettingsTable QSpinBox,
+#advancedSettingsTable QLineEdit { min-height: 28px; }
+
+/* Phase B: DeletionConfirmationDialog (HANDOFF 5.10 / components sheet) */
+QDialog#DeletionConfirmationDialog { background: ${overlay}; }
+QDialog#DeletionConfirmationDialog QLabel#deleteTile {
+  background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.25);
+  border-radius: 10px; qproperty-alignment: AlignCenter; }
+QDialog#DeletionConfirmationDialog QLabel#deleteHelp { color: ${text3}; font-size: 12.5px; }
+QDialog#DeletionConfirmationDialog QFrame#deleteFilesCard {
+  background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.25); border-radius: 10px; }
+QDialog#DeletionConfirmationDialog QLabel#deleteFilesLabel { color: ${text1}; font-size: 13px; }
+QDialog#DeletionConfirmationDialog QCheckBox#rememberBtn { color: ${text3}; font-size: 12px; }
+QDialog#DeletionConfirmationDialog QPushButton[variant="danger"] {
+  background: ${stError}; color: ${onDanger}; border: none; border-radius: 8px; }
+QDialog#DeletionConfirmationDialog QPushButton[variant="danger"]:hover { background: ${stError}; }
+
+/* Phase B: StatsDialog cards (HANDOFF 5.7 / 06-speed-stats) */
+QDialog#StatsDialog { background: ${overlay}; }
+QDialog#StatsDialog QGroupBox[statsCard="true"] {
+  background: ${raised}; border: 1px solid ${lineSubtle}; border-radius: 10px;
+  margin-top: 24px; padding: 10px 16px; }
+QDialog#StatsDialog QGroupBox[statsCard="true"]::title {
+  subcontrol-origin: margin; left: 4px; top: 4px; color: ${text2};
+  font-size: 12.5px; font-weight: 600; }
+QDialog#StatsDialog QGroupBox[statsCard="true"] QLabel { color: ${text3}; font-size: 12.5px; }
+QDialog#StatsDialog QGroupBox[statsCard="true"] QLabel#statsValue {
+  color: ${text1}; font-size: 12.5px; font-weight: 500; }
+QDialog#StatsDialog QFrame#statsHairline { background: ${lineSubtle}; border: none; }
+
+/* Post-review: ghost buttons must never inherit the generic :default mint fill. */
+QDialog#DeletionConfirmationDialog QPushButton[variant="ghost"],
+QDialog#StatsDialog QPushButton[variant="ghost"] {
+  background: transparent; border: none; color: ${text2}; }
+
+/* Phase C: Details panel (HANDOFF 5.2 / 02-details-general) */
+PropertiesWidget { background: ${surface}; }
+PropertiesWidget QScrollArea, PropertiesWidget QScrollArea > QWidget > QWidget {
+  background: ${surface}; border: none; }
+PropertiesWidget QWidget#detailsCard, PropertiesWidget QGroupBox#detailsCard {
+  background: ${raised}; border: 1px solid ${lineSubtle}; border-radius: 10px; }
+PropertiesWidget QGroupBox#detailsCard::title { subcontrol-origin: margin; left: 16px; top: 8px;
+  color: ${text2}; font-size: 12px; font-weight: 600; }
+PropertiesWidget QWidget#detailsCard QLabel#detailHeader { color: ${text2}; font-size: 12px; font-weight: 600; }
+PropertiesWidget QLabel#detailName { color: ${text1}; font-size: 15px; font-weight: 600; }
+PropertiesWidget QLabel#detailPill { color: ${accentText}; background: rgba(69,227,184,0.12);
+  border: 1px solid rgba(69,227,184,0.30); border-radius: 10px; padding: 2px 10px; font-size: 11.5px; }
+PropertiesWidget QLabel#detailSummary { color: ${text2}; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+PropertiesWidget QLabel#detailKey { color: ${text3}; font-size: 12.5px; min-width: 128px; }
+PropertiesWidget QLabel#detailValue { color: ${text1}; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+PropertiesWidget QLabel#detailMeta { color: ${text3}; font-size: 12px; }
+PropertiesWidget QLabel#detailSwatchHave { background: ${accent}; }
+PropertiesWidget QLabel#detailSwatchPartial { background: ${accentHover}; }
+PropertiesWidget QLabel#detailSwatchMissing { background: ${lineStrong}; }
+PropertiesWidget QToolButton#detailCopy { border: none; background: transparent; padding: 0 4px; }
+PropertiesWidget QToolButton#detailCopy:hover { background: ${hover}; border-radius: 5px; }
+PropertiesWidget QToolButton#propHide { border: none; background: transparent; border-radius: 6px; padding: 4px; }
+PropertiesWidget QToolButton#propHide:hover { background: ${hover}; }
+
+/* Phase D: details-panel item views */
+PropertiesWidget QTreeView, PropertiesWidget QListWidget {
+  background: ${surface}; border: none; outline: none;
+  alternate-background-color: ${raised}; }
+PropertiesWidget QTreeView::item, PropertiesWidget QListWidget::item {
+  height: 34px; border-radius: 7px; margin: 1px 3px; padding: 0 4px; }
+PropertiesWidget QTreeView::item:hover, PropertiesWidget QListWidget::item:hover { background: ${hover}; }
+PropertiesWidget QTreeView::item:selected, PropertiesWidget QListWidget::item:selected {
+  background: ${selected}; color: ${text1}; }
+PropertiesWidget QTreeView::item:selected:active { background: ${selectedStrong}; }
+PropertiesWidget QTreeView::branch { background: transparent; border: none; }
+PropertiesWidget QHeaderView::section {
+  background: ${surface}; color: ${text3}; border: none;
+  border-bottom: 1px solid ${lineSubtle}; padding: 6px 8px; font-size: 12px; }
+PropertiesWidget QHeaderView::section:hover { color: ${text1}; }
+PropertiesWidget QLineEdit#contentFilterLine { min-height: 30px; max-height: 30px; }
+PropertiesWidget QPushButton#contentGhostButton, PropertiesWidget QToolButton#peerAddButton {
+  background: transparent; border: none; border-radius: 6px; padding: 0 8px;
+  color: ${text2}; font-size: 12px; }
+PropertiesWidget QPushButton#contentGhostButton:hover, PropertiesWidget QToolButton#peerAddButton:hover {
+  background: ${hover}; color: ${text1}; }
+PropertiesWidget QLabel#contentSelectedLabel { color: ${text3}; font-size: 12.5px; }
+PropertiesWidget QLabel#httpSourcesEmpty { color: ${text3}; font-size: 12.5px; }

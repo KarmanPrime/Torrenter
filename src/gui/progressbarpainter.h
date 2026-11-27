@@ -30,6 +30,7 @@
 #pragma once
 
 #include <QColor>
+#include <QTimer>
 #include <QObject>
 #include <QProgressBar>
 
@@ -43,7 +44,12 @@ class ProgressBarPainter : public QObject
 public:
     explicit ProgressBarPainter(QObject *parent = nullptr);
 
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QString &text, int progress, const QColor &color = {}) const;
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QString &text, int progress,
+               const QColor &color = {}, bool striped = false, quint64 key = 0) const;
+
+    static qreal lerped(quint64 key, qreal target);
+    static void noteStriped();
+    static qreal stripePhase();
 
 private:
     void applyUITheme();

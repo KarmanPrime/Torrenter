@@ -28,133 +28,214 @@
 
 #include "statusbar.h"
 
-#include <QFrame>
+#include <QFont>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QPixmap>
+#include <QPalette>
 #include <QPushButton>
 #include <QStyle>
 
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/sessionstatus.h"
+#include "base/global.h"
 #include "base/preferences.h"
 #include "base/utils/misc.h"
 #include "speedlimitdialog.h"
+#include "themetokens.h"
 #include "uithememanager.h"
 #include "utils.h"
 
 namespace
 {
-    QWidget *createSeparator(QWidget *parent)
+    QString cssColor(const QColor &color, const int alpha = -1)
     {
-        auto *separator = new QFrame(parent);
-        separator->setFrameStyle(QFrame::VLine);
-#ifndef Q_OS_MACOS
-        separator->setFrameShadow(QFrame::Raised);
-#endif
-        return separator;
+        QColor result = color;
+        if (alpha >= 0)
+            result.setAlpha(alpha);
+        return QStringLiteral("rgba(%1,%2,%3,%4)")
+                .arg(result.red()).arg(result.green()).arg(result.blue()).arg(result.alpha());
     }
 
-    QPushButton *createSpeedButton(const QIcon &icon, QWidget *parent)
+    void applyTabularFont(QWidget *widget, const int pixelSize, const int weight)
     {
-        auto *button = new QPushButton(icon, {}, parent);
+        QFont font = widget->font();
+        font.setPixelSize(pixelSize);
+        font.setWeight(static_cast<QFont::Weight>(weight));
+        font.setFeature("tnum", 1);  // OpenType tabular numbers
+        widget->setFont(font);
+    }
+
+    QLabel *createStatusLabel(QWidget *parent, const QColor &color, const QString &text = {})
+    {
+        auto *label = new QLabel(text, parent);
+        applyTabularFont(label, 12, QFont::Normal);
+        QPalette pal = label->palette();
+        pal.setColor(QPalette::WindowText, color);
+        label->setPalette(pal);
+        // Colors are set in code (palette + generated stylesheet), not in QSS alone.
+        label->setStyleSheet(QStringLiteral("QLabel { color: %1; padding: 0; background: transparent; }")
+            .arg(cssColor(color)));
+        label->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+        return label;
+    }
+
+    QPushButton *createSpeedButton(QWidget *parent, const QColor &color)
+    {
+        auto *button = new QPushButton(parent);
         button->setCursor(Qt::PointingHandCursor);
         button->setFlat(true);
         button->setFocusPolicy(Qt::NoFocus);
-        button->setMinimumWidth(200);
-        button->setStyleSheet(u"text-align: left;"_s);
+        button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+        applyTabularFont(button, 12, QFont::Medium);
+        QPalette pal = button->palette();
+        pal.setColor(QPalette::ButtonText, color);
+        button->setPalette(pal);
+        button->setStyleSheet(QStringLiteral("QPushButton { color: %1; background: transparent; border: none; padding: 0; min-height: 0; max-height: 22px; }")
+            .arg(cssColor(color)));
         return button;
     }
+}
+
+ConnectionLed::ConnectionLed(QWidget *parent)
+    : QAbstractButton(parent)
+{
+    setFixedSize(13, 13);
+    setCursor(Qt::PointingHandCursor);
+    setFocusPolicy(Qt::NoFocus);
+}
+
+void ConnectionLed::setStatusColor(const QColor &color)
+{
+    if (m_color == color)
+        return;
+    m_color = color;
+    update();
+}
+
+void ConnectionLed::paintEvent(QPaintEvent *)
+{
+    if (!m_color.isValid())
+        return;
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+
+    // 3 px halo at 15% opacity, then the 7 px dot.
+    QColor halo = m_color;
+    halo.setAlpha(38);
+    painter.setBrush(halo);
+    painter.drawEllipse(rect().adjusted(0, 0, -1, -1));
+    painter.setBrush(m_color);
+    painter.drawEllipse(rect().adjusted(3, 3, -4, -4));
 }
 
 StatusBar::StatusBar(QWidget *parent)
     : QStatusBar(parent)
 {
-    QString styleSheet = u"QWidget { margin: 0; }"_s;
-#ifndef Q_OS_MACOS
-    // Redefining global stylesheet breaks certain elements on mac like tabs.
-    // Qt checks whether the stylesheet class inherits("QMacStyle") and this becomes false.
-    styleSheet += u"QStatusBar::item { border-width: 0; }";
-#endif
-    setStyleSheet(styleSheet);
+    const auto mode = ThemeTokens::currentMode();
+    const QColor chrome = ThemeTokens::color(ThemeTokens::Token::Chrome, mode);
+    const QColor lineSubtle = ThemeTokens::color(ThemeTokens::Token::LineSubtle, mode);
+    const QColor text3 = ThemeTokens::color(ThemeTokens::Token::Text3, mode);
 
-    const auto *session = BitTorrent::Session::instance();
-    connect(session, &BitTorrent::Session::speedLimitModeChanged, this, &StatusBar::updateAltSpeedsBtn);
+    // QA-v6: 30 px tall, chrome background, hairline top border, no item borders.
+    setMinimumHeight(30);
+    setMaximumHeight(30);
+    setStyleSheet(QStringLiteral("QStatusBar { background: %1; border-top: 1px solid %2; min-height: 30px; max-height: 30px; }"
+        " QStatusBar::item { border: none; margin: 0; padding: 0; }")
+        .arg(cssColor(chrome), cssColor(lineSubtle)));
+    connect(UIThemeManager::instance(), &UIThemeManager::themeChanged, this, [this]()
+    {
+        const auto mode = ThemeTokens::currentMode();
+        setStyleSheet(QStringLiteral("QStatusBar { background: %1; border-top: 1px solid %2; min-height: 30px; max-height: 30px; }"
+            " QStatusBar::item { border: none; margin: 0; padding: 0; }")
+            .arg(cssColor(ThemeTokens::color(ThemeTokens::Token::Chrome, mode))
+                , cssColor(ThemeTokens::color(ThemeTokens::Token::LineSubtle, mode))));
+    });
 
-    m_connecStatusLblIcon = new QPushButton(UIThemeManager::instance()->getIcon(u"firewalled"_s), {}, this);
-    m_connecStatusLblIcon->setCursor(Qt::PointingHandCursor);
-    m_connecStatusLblIcon->setFlat(true);
-    m_connecStatusLblIcon->setFocusPolicy(Qt::NoFocus);
-    m_connecStatusLblIcon->setToolTip(u"<b>%1</b><br><i>%2</i>"_s.arg(tr("Connection status:")
-        , tr("No direct connections. This may indicate network configuration problems.")));
-    connect(m_connecStatusLblIcon, &QAbstractButton::clicked, this, &StatusBar::connectionButtonClicked);
+    // One stretched permanent widget gives us 14 px side padding and 16 px gaps
+    // with the left/right cluster layout fully under our control.
+    m_content = new QWidget(this);
+    auto *contentLayout = new QHBoxLayout(m_content);
+    contentLayout->setContentsMargins(14, 0, 14, 0);
+    contentLayout->setSpacing(16);
 
-    m_dlSpeedLbl = createSpeedButton(UIThemeManager::instance()->getIcon(u"downloading"_s, u"downloading_small"_s), this);
+    m_leftCluster = new QWidget(m_content);
+    auto *leftLayout = new QHBoxLayout(m_leftCluster);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(16);
+
+    m_rightCluster = new QWidget(m_content);
+    auto *rightLayout = new QHBoxLayout(m_rightCluster);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(16);
+
+    contentLayout->addWidget(m_leftCluster, 0, Qt::AlignLeft);
+    contentLayout->addStretch(1);
+    contentLayout->addWidget(m_rightCluster, 0, Qt::AlignRight);
+
+    m_connectionLed = new ConnectionLed(m_leftCluster);
+    connect(m_connectionLed, &QAbstractButton::clicked, this, &StatusBar::connectionButtonClicked);
+    leftLayout->addWidget(m_connectionLed, 0, Qt::AlignVCenter);
+
+    m_connectionLbl = createStatusLabel(m_leftCluster, text3, tr("Connected"));
+    leftLayout->addWidget(m_connectionLbl, 0, Qt::AlignVCenter);
+
+    m_DHTLbl = createStatusLabel(m_leftCluster, text3, tr("DHT: %1 nodes").arg(0));
+    leftLayout->addWidget(m_DHTLbl, 0, Qt::AlignVCenter);
+
+    m_freeDiskSpaceLbl = createStatusLabel(m_leftCluster, text3, tr("Free space: N/A"));
+    leftLayout->addWidget(m_freeDiskSpaceLbl, 0, Qt::AlignVCenter);
+
+    m_lastExternalIPsLbl = createStatusLabel(m_leftCluster, text3, tr("External IP: N/A"));
+    leftLayout->addWidget(m_lastExternalIPsLbl, 0, Qt::AlignVCenter);
+
+    // QA-v6 explicit ink values: mint down, violet up; session totals stay text3.
+    m_dlSpeedLbl = createSpeedButton(m_rightCluster, QColor(QStringLiteral("#45E3B8")));
     connect(m_dlSpeedLbl, &QAbstractButton::clicked, this, &StatusBar::capSpeed);
+    m_dlTotalLbl = createStatusLabel(m_rightCluster, text3);
 
-    m_upSpeedLbl = createSpeedButton(UIThemeManager::instance()->getIcon(u"upload"_s, u"seeding"_s), this);
+    m_upSpeedLbl = createSpeedButton(m_rightCluster, QColor(QStringLiteral("#9D8CFF")));
     connect(m_upSpeedLbl, &QAbstractButton::clicked, this, &StatusBar::capSpeed);
+    m_upTotalLbl = createStatusLabel(m_rightCluster, text3);
 
-    m_freeDiskSpaceLbl = new QLabel(tr("Free space: N/A"));
-    m_freeDiskSpaceLbl->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    m_freeDiskSpaceSeparator = createSeparator(this);
-
-    m_lastExternalIPsLbl = new QLabel(tr("External IP: N/A"));
-    m_lastExternalIPsLbl->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    m_lastExternalIPsSeparator = createSeparator(this);
-
-    const bool isDHTVisible = session->isDHTEnabled();
-    m_DHTLbl = new QLabel(tr("DHT: %1 nodes").arg(0), this);
-    m_DHTLbl->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    m_DHTLbl->setVisible(isDHTVisible);
-    m_DHTSeparator = createSeparator(this);
-    m_DHTSeparator->setVisible(isDHTVisible);
-
-    m_altSpeedsBtn = new QPushButton(this);
+    m_altSpeedsBtn = new QPushButton(m_rightCluster);
     m_altSpeedsBtn->setCursor(Qt::PointingHandCursor);
     m_altSpeedsBtn->setFlat(true);
     m_altSpeedsBtn->setFocusPolicy(Qt::NoFocus);
-    updateAltSpeedsBtn(session->isAltGlobalSpeedLimitEnabled());
+    m_altSpeedsBtn->setFixedSize(20, 20);
+    m_altSpeedsBtn->setIconSize(QSize(14, 14));
+    m_altSpeedsBtn->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; padding: 0; }"));
     connect(m_altSpeedsBtn, &QAbstractButton::clicked, this, &StatusBar::alternativeSpeedsButtonClicked);
 
-    // Because on some platforms the default icon size is bigger
-    // and it will result in taller/fatter statusbar, even if the
-    // icons are actually 16x16
-    const QSize smallIconSize = Utils::Gui::smallIconSize();
-    const QSize midIconSize = Utils::Gui::mediumIconSize();
-    m_connecStatusLblIcon->setIconSize(smallIconSize);
-    m_dlSpeedLbl->setIconSize(smallIconSize);
-    m_upSpeedLbl->setIconSize(smallIconSize);
-    m_altSpeedsBtn->setIconSize({midIconSize.width(), smallIconSize.height()});
+    rightLayout->addWidget(m_dlSpeedLbl, 0, Qt::AlignVCenter);
+    rightLayout->addWidget(m_dlTotalLbl, 0, Qt::AlignVCenter);
+    rightLayout->addWidget(m_upSpeedLbl, 0, Qt::AlignVCenter);
+    rightLayout->addWidget(m_upTotalLbl, 0, Qt::AlignVCenter);
+    rightLayout->addWidget(m_altSpeedsBtn, 0, Qt::AlignVCenter);
 
-    addPermanentWidget(m_freeDiskSpaceLbl);
-    addPermanentWidget(m_freeDiskSpaceSeparator);
-    addPermanentWidget(m_lastExternalIPsLbl);
-    addPermanentWidget(m_lastExternalIPsSeparator);
-    addPermanentWidget(m_DHTLbl);
-    addPermanentWidget(m_DHTSeparator);
-    addPermanentWidget(m_connecStatusLblIcon);
-    addPermanentWidget(createSeparator(this));
-    addPermanentWidget(m_altSpeedsBtn);
-    addPermanentWidget(createSeparator(this));
-    addPermanentWidget(m_dlSpeedLbl);
-    addPermanentWidget(createSeparator(this));
-    addPermanentWidget(m_upSpeedLbl);
+    addPermanentWidget(m_content, 1);
 
-    updateExternalAddressesVisibility();
-
-    refresh();
+    const auto *session = BitTorrent::Session::instance();
+    connect(session, &BitTorrent::Session::speedLimitModeChanged, this, &StatusBar::updateAltSpeedsBtn);
     connect(session, &BitTorrent::Session::statsUpdated, this, &StatusBar::refresh);
+    connect(session, &BitTorrent::Session::freeDiskSpaceChecked, this, &StatusBar::updateFreeDiskSpaceLabel);
+    connect(Preferences::instance(), &Preferences::changed, this, &StatusBar::optionsSaved);
 
+    updateAltSpeedsBtn(session->isAltGlobalSpeedLimitEnabled());
+    updateDHTNodesNumber();
+    updateExternalAddressesVisibility();
     updateFreeDiskSpaceVisibility();
     updateFreeDiskSpaceLabel(session->freeDiskSpace());
-    connect(session, &BitTorrent::Session::freeDiskSpaceChecked, this, &StatusBar::updateFreeDiskSpaceLabel);
-
-    connect(Preferences::instance(), &Preferences::changed, this, &StatusBar::optionsSaved);
 }
 
 void StatusBar::showRestartRequired()
 {
     // Restart required notification
-    const QString restartText = tr("qBittorrent needs to be restarted!");
+    const QString restartText = tr("Torrenter needs to be restarted!");
 
     const QPixmap pixmap = style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(Utils::Gui::smallIconSize());
     auto *restartIconLbl = new QLabel(this);
@@ -169,45 +250,38 @@ void StatusBar::showRestartRequired()
 
 void StatusBar::updateConnectionStatus()
 {
-    const BitTorrent::SessionStatus &sessionStatus = BitTorrent::Session::instance()->status();
+    const BitTorrent::Session *session = BitTorrent::Session::instance();
+    const BitTorrent::SessionStatus &sessionStatus = session->status();
+    const auto mode = ThemeTokens::currentMode();
 
-    if (!BitTorrent::Session::instance()->isListening())
+    if (!session->isListening())
     {
-        m_connecStatusLblIcon->setIcon(UIThemeManager::instance()->getIcon(u"disconnected"_s));
-        const QString tooltip = u"<b>%1</b><br>%2"_s.arg(tr("Connection Status:"), tr("Offline. This usually means that qBittorrent failed to listen on the selected port for incoming connections."));
-        m_connecStatusLblIcon->setToolTip(tooltip);
+        m_connectionLed->setStatusColor(QColor(QStringLiteral("#FF6B6B")));
+        m_connectionLbl->setText(tr("Disconnected"));
+        m_connectionLbl->setToolTip(u"<b>%1</b><br>%2"_s.arg(tr("Connection Status:")
+            , tr("Offline. This usually means that Torrenter failed to listen on the selected port for incoming connections.")));
+    }
+    else if (sessionStatus.hasIncomingConnections)
+    {
+        m_connectionLed->setStatusColor(QColor(QStringLiteral("#45E3B8")));
+        m_connectionLbl->setText(tr("Connected"));
+        m_connectionLbl->setToolTip(u"<b>%1</b><br>%2"_s.arg(tr("Connection Status:"), tr("Online")));
     }
     else
     {
-        if (sessionStatus.hasIncomingConnections)
-        {
-            // Connection OK
-            m_connecStatusLblIcon->setIcon(UIThemeManager::instance()->getIcon(u"connected"_s));
-            const QString tooltip = u"<b>%1</b><br>%2"_s.arg(tr("Connection Status:"), tr("Online"));
-            m_connecStatusLblIcon->setToolTip(tooltip);
-        }
-        else
-        {
-            m_connecStatusLblIcon->setIcon(UIThemeManager::instance()->getIcon(u"firewalled"_s));
-            const QString tooltip = u"<b>%1</b><br><i>%2</i>"_s.arg(tr("Connection Status:"), tr("No direct connections. This may indicate network configuration problems."));
-            m_connecStatusLblIcon->setToolTip(tooltip);
-        }
+        m_connectionLed->setStatusColor(ThemeTokens::color(ThemeTokens::Token::StStalled, mode));
+        m_connectionLbl->setText(tr("Firewalled"));
+        m_connectionLbl->setToolTip(u"<b>%1</b><br><i>%2</i>"_s.arg(tr("Connection Status:")
+            , tr("No direct connections. This may indicate network configuration problems.")));
     }
 }
 
 void StatusBar::updateDHTNodesNumber()
 {
-    if (BitTorrent::Session::instance()->isDHTEnabled())
-    {
-        m_DHTLbl->setVisible(true);
-        m_DHTSeparator->setVisible(true);
+    const bool visible = BitTorrent::Session::instance()->isDHTEnabled();
+    m_DHTLbl->setVisible(visible);
+    if (visible)
         m_DHTLbl->setText(tr("DHT: %1 nodes").arg(BitTorrent::Session::instance()->status().dhtNodes));
-    }
-    else
-    {
-        m_DHTLbl->setVisible(false);
-        m_DHTSeparator->setVisible(false);
-    }
 }
 
 void StatusBar::updateFreeDiskSpaceLabel(const qint64 value)
@@ -217,9 +291,7 @@ void StatusBar::updateFreeDiskSpaceLabel(const qint64 value)
 
 void StatusBar::updateFreeDiskSpaceVisibility()
 {
-    const bool isVisible = Preferences::instance()->isStatusbarFreeDiskSpaceDisplayed();
-    m_freeDiskSpaceLbl->setVisible(isVisible);
-    m_freeDiskSpaceSeparator->setVisible(isVisible);
+    m_freeDiskSpaceLbl->setVisible(Preferences::instance()->isStatusbarFreeDiskSpaceDisplayed());
 }
 
 void StatusBar::updateExternalAddressesLabel()
@@ -241,28 +313,26 @@ void StatusBar::updateExternalAddressesLabel()
 
 void StatusBar::updateExternalAddressesVisibility()
 {
-    const bool isVisible = Preferences::instance()->isStatusbarExternalIPDisplayed();
-    m_lastExternalIPsLbl->setVisible(isVisible);
-    m_lastExternalIPsSeparator->setVisible(isVisible);
+    m_lastExternalIPsLbl->setVisible(Preferences::instance()->isStatusbarExternalIPDisplayed());
 }
 
 void StatusBar::updateSpeedLabels()
 {
     const BitTorrent::SessionStatus &sessionStatus = BitTorrent::Session::instance()->status();
 
-    QString dlSpeedLbl = Utils::Misc::friendlyUnit(sessionStatus.payloadDownloadRate, true);
+    QString dlSpeed = Utils::Misc::friendlyUnit(sessionStatus.payloadDownloadRate, true);
     const int dlSpeedLimit = BitTorrent::Session::instance()->downloadSpeedLimit();
     if (dlSpeedLimit > 0)
-        dlSpeedLbl += u" [" + Utils::Misc::friendlyUnit(dlSpeedLimit, true) + u']';
-    dlSpeedLbl += u" (" + Utils::Misc::friendlyUnit(sessionStatus.totalPayloadDownload) + u')';
-    m_dlSpeedLbl->setText(dlSpeedLbl);
+        dlSpeed += u" [" + Utils::Misc::friendlyUnit(dlSpeedLimit, true) + u']';
+    m_dlSpeedLbl->setText(tr("↓ %1").arg(dlSpeed));
+    m_dlTotalLbl->setText(Utils::Misc::friendlyUnit(sessionStatus.totalPayloadDownload));
 
-    QString upSpeedLbl = Utils::Misc::friendlyUnit(sessionStatus.payloadUploadRate, true);
+    QString upSpeed = Utils::Misc::friendlyUnit(sessionStatus.payloadUploadRate, true);
     const int upSpeedLimit = BitTorrent::Session::instance()->uploadSpeedLimit();
     if (upSpeedLimit > 0)
-        upSpeedLbl += u" [" + Utils::Misc::friendlyUnit(upSpeedLimit, true) + u']';
-    upSpeedLbl += u" (" + Utils::Misc::friendlyUnit(sessionStatus.totalPayloadUpload) + u')';
-    m_upSpeedLbl->setText(upSpeedLbl);
+        upSpeed += u" [" + Utils::Misc::friendlyUnit(upSpeedLimit, true) + u']';
+    m_upSpeedLbl->setText(tr("↑ %1").arg(upSpeed));
+    m_upTotalLbl->setText(Utils::Misc::friendlyUnit(sessionStatus.totalPayloadUpload));
 }
 
 void StatusBar::refresh()
@@ -275,18 +345,11 @@ void StatusBar::refresh()
 
 void StatusBar::updateAltSpeedsBtn(const bool alternative)
 {
-    if (alternative)
-    {
-        m_altSpeedsBtn->setIcon(UIThemeManager::instance()->getIcon(u"slow"_s));
-        m_altSpeedsBtn->setToolTip(tr("Click to switch to regular speed limits"));
-        m_altSpeedsBtn->setDown(true);
-    }
-    else
-    {
-        m_altSpeedsBtn->setIcon(UIThemeManager::instance()->getIcon(u"slow_off"_s));
-        m_altSpeedsBtn->setToolTip(tr("Click to switch to alternative speed limits"));
-        m_altSpeedsBtn->setDown(false);
-    }
+    m_altSpeedsBtn->setIcon(UIThemeManager::instance()->getIcon(alternative ? u"slow"_s : u"slow_off"_s));
+    m_altSpeedsBtn->setToolTip(alternative
+        ? tr("Click to switch to regular speed limits")
+        : tr("Click to switch to alternative speed limits"));
+    m_altSpeedsBtn->setDown(alternative);
     refresh();
 }
 

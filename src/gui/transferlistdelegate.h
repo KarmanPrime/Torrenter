@@ -29,6 +29,8 @@
 
 #pragma once
 
+#include <QHash>
+
 #include <QStyledItemDelegate>
 
 #include "progressbarpainter.h"
@@ -41,10 +43,16 @@ class TransferListDelegate final : public QStyledItemDelegate
 public:
     explicit TransferListDelegate(QObject *parent);
 
+    static void setCompactMode(bool enabled);
+    static bool isCompactMode();
+    static void setHoverFade(int row, qreal alpha);
+    static qreal hoverFade(int row);
+
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 
 private:
+    void paintCompact(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+
     ProgressBarPainter m_progressBarPainter;
-    mutable int m_nameColHeight = -1;
 };

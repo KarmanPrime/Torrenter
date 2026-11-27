@@ -30,10 +30,13 @@
 
 #include <QCheckBox>
 #include <QFont>
+#include <QGuiApplication>
 #include <QPainter>
 #include <QString>
 #include <QStyleOptionViewItem>
 #include <QVBoxLayout>
+
+#include "base/global.h"
 
 namespace
 {
@@ -47,17 +50,13 @@ namespace
         {
             QPainter painter {this};
 
-            QStyleOptionViewItem indicatorOption;
-            indicatorOption.initFrom(this);
-            indicatorOption.rect = style()->subElementRect(QStyle::SE_CheckBoxIndicator, &indicatorOption, this);
-            indicatorOption.state |= (QStyle::State_Children
-                | (isChecked() ? QStyle::State_Open : QStyle::State_None));
-            style()->drawPrimitive(QStyle::PE_IndicatorBranch, &indicatorOption, &painter, this);
-
-            QStyleOptionButton labelOption;
-            initStyleOption(&labelOption);
-            labelOption.rect = style()->subElementRect(QStyle::SE_CheckBoxContents, &labelOption, this);
-            style()->drawControl(QStyle::CE_CheckBoxLabel, &labelOption, &painter, this);
+            // Section headers have no collapse chevron (design: 01-main-dark)
+            QStyleOptionViewItem labelOption;
+            labelOption.initFrom(this);
+            labelOption.rect = rect();
+            labelOption.text = text();
+            labelOption.displayAlignment = Qt::AlignLeft | Qt::AlignVCenter;
+            style()->drawControl(QStyle::CE_ItemViewItem, &labelOption, &painter, this);
         }
     };
 }
@@ -67,16 +66,18 @@ TransferListFiltersWidgetItem::TransferListFiltersWidgetItem(const QString &capt
     , m_caption {new ArrowCheckBox(caption, this)}
     , m_filterWidget {filterWidget}
 {
-    QFont font;
-    font.setBold(true);
-    font.setCapitalization(QFont::AllUppercase);
+    QFont font = QGuiApplication::font();
+    font.setPixelSize(11);
+    font.setWeight(QFont::DemiBold);
     m_caption->setFont(font);
+    m_caption->setObjectName(u"filterSectionHeader"_s);
 
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 2, 0, 0);
-    layout->setSpacing(2);
+    layout->setContentsMargins(0, 16, 0, 0);
+    layout->setSpacing(0);
     layout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     layout->addWidget(m_caption);
+    layout->addSpacing(4);  // 16px above header, 4px below it
     layout->addWidget(m_filterWidget);
 
     m_filterWidget->setVisible(m_caption->isChecked());

@@ -29,8 +29,13 @@
 #pragma once
 
 #include <QDialog>
+#include <QPointer>
 
 #include "base/settingvalue.h"
+
+class QLabel;
+class QListWidget;
+class QToolButton;
 
 namespace Ui
 {
@@ -51,10 +56,19 @@ signals:
 
 private slots:
     void onSubmit();
+    void updateParsedList();
 
 private:
     void keyPressEvent(QKeyEvent *event) override;
+    void done(int result) override;
+    void anchorToLinkButton();
+    void restoreAnchorState();
 
     Ui::DownloadFromURLDialog *m_ui = nullptr;
     SettingValue<QSize> m_storeDialogSize;
+    QListWidget *m_parsedList = nullptr;
+    QLabel *m_linksCount = nullptr;
+    QPointer<QToolButton> m_anchorButton;
+    bool m_anchorWasCheckable = false;
+    bool m_anchorWasChecked = false;
 };

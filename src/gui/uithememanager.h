@@ -40,6 +40,7 @@
 #include <QString>
 
 #include "base/settingvalue.h"
+#include "themetokens.h"
 #include "trayiconstyle.h"
 #include "uithemesource.h"
 
@@ -69,6 +70,10 @@ public:
     void setTrayIconStyle(TrayIconStyle value);
 
     QIcon getIcon(const QString &iconId, const QString &fallback = {}) const;
+    // Explicit token tint (e.g. ThemeTokens::Token::Accent for an app-state active icon).
+    QIcon getIcon(const QString &iconId, ThemeTokens::Token token, const QString &fallback = {}) const;
+    // Shortcut for the Accent-tinted variant of an icon.
+    QIcon activeIcon(const QString &iconId, const QString &fallback = {}) const;
     QIcon getSystrayIcon() const;
     QIcon getFlagIcon(const QString &countryIsoCode) const;
     QPixmap getScaledPixmap(const QString &iconId, int height) const;
@@ -93,7 +98,7 @@ private:
     void applyColorScheme() const;
 #endif
 
-    QIcon getIcon(const QString &iconId, const QString &fallback, ColorMode colorMode) const;
+    QIcon getIcon(const QString &iconId, const QString &fallback, ColorMode colorMode, ThemeTokens::Token token) const;
 
     static UIThemeManager *m_instance;
     const bool m_useCustomTheme;

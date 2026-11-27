@@ -28,6 +28,7 @@
  */
 
 #include "aboutdialog.h"
+#include <QLabel>
 
 #include <QClipboard>
 
@@ -56,7 +57,7 @@ AboutDialog::AboutDialog(QWidget *parent)
     m_ui->setupUi(this);
 
     // Title
-    m_ui->labelName->setText(QStringLiteral("<b><h2>qBittorrent " QBT_VERSION " (%1-bit)</h2></b>").arg(QT_POINTER_SIZE * 8));
+    m_ui->labelName->setText(QStringLiteral("<b><h2>Torrenter " QBT_VERSION " (%1-bit)</h2></b>").arg(QT_POINTER_SIZE * 8));
 
     m_ui->logo->setPixmap(UIThemeManager::instance()->getScaledPixmap(u"qbittorrent-tray"_s, 32));
 
@@ -134,6 +135,22 @@ AboutDialog::AboutDialog(QWidget *parent)
     labelLuaBridgeVer->setText(PluginsEngine::luaBridgeVersion().toString());
     m_ui->gridLayout->addWidget(labelLuaBridgeVer, luaBridgeRow, 2);
 #endif
+
+    // Bundled typeface credit
+    const int fontRow = m_ui->gridLayout->rowCount();
+    auto *labelFont = new QLabel(tr("Inter font:"), m_ui->SoftwareUsedTab);
+    labelFont->setAlignment(Qt::AlignRight);
+    m_ui->gridLayout->addWidget(labelFont, fontRow, 1);
+    auto *labelFontLicense = new QLabel(tr("SIL Open Font License 1.1"), m_ui->SoftwareUsedTab);
+    m_ui->gridLayout->addWidget(labelFontLicense, fontRow, 2);
+
+    // Bundled icon set credit
+    const int lucideRow = m_ui->gridLayout->rowCount();
+    auto *labelLucide = new QLabel(tr("Lucide icons:"), m_ui->SoftwareUsedTab);
+    labelLucide->setAlignment(Qt::AlignRight);
+    m_ui->gridLayout->addWidget(labelLucide, lucideRow, 1);
+    auto *labelLucideLicense = new QLabel(tr("ISC License"), m_ui->SoftwareUsedTab);
+    m_ui->gridLayout->addWidget(labelLucideLicense, lucideRow, 2);
 
     connect(m_ui->btnCopyToClipboard, &QAbstractButton::clicked, this, &AboutDialog::copyVersionsToClipboard);
 

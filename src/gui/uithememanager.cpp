@@ -29,8 +29,11 @@
  */
 
 #include "uithememanager.h"
+#include <QFile>
 
 #include <QApplication>
+#include <QFont>
+#include <QFontDatabase>
 #include <QPalette>
 #include <QPixmapCache>
 #include <QResource>
@@ -41,10 +44,12 @@
 #include "base/path.h"
 #include "base/profile.h"
 #include "base/preferences.h"
+#include "torrentericons.h"
 #include "uithemecommon.h"
 
 #ifdef Q_OS_WIN
 #include "base/utils/reg.h"
+#include "windowsthemehelper.h"
 #endif
 
 using namespace Qt::Literals::StringLiterals;
@@ -90,13 +95,28 @@ UIThemeManager::UIThemeManager()
 {
 #ifdef Q_OS_WIN
     updateSystemColorMode();
+    WindowsThemeHelper::install();
 #endif
 
-    if (const QString styleName = Preferences::instance()->getStyle(); styleName.compare(u"system", Qt::CaseInsensitive) != 0)
-    {
-        if (!QApplication::setStyle(styleName))
-            LogMsg(tr("Set app style failed. Unknown style: \"%1\"").arg(styleName), Log::WARNING);
-    }
+    const int interRegularID = QFontDatabase::addApplicationFont(u":/fonts/Inter-Regular.ttf"_s);
+    const int interMediumID = QFontDatabase::addApplicationFont(u":/fonts/Inter-Medium.ttf"_s);
+    const int interSemiBoldID = QFontDatabase::addApplicationFont(u":/fonts/Inter-SemiBold.ttf"_s);
+    Q_UNUSED(interRegularID);
+    Q_UNUSED(interMediumID);
+    Q_UNUSED(interSemiBoldID);
+
+    QFont appFont(u"Inter"_s);
+    appFont.setPointSize(9);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    appFont.setFeature(QFont::Tag("tnum"), 1);
+#endif
+    QApplication::setFont(appFont);
+
+    const QString styleName = Preferences::instance()->getStyle();
+    if (styleName.compare(u"system", Qt::CaseInsensitive) == 0)
+        QApplication::setStyle(u"Fusion"_s);
+    else if (!QApplication::setStyle(styleName))
+        LogMsg(tr("Set app style failed. Unknown style: \"%1\"").arg(styleName), Log::WARNING);
 
 #ifdef QBT_HAS_COLORSCHEME_OPTION
     applyColorScheme();
@@ -124,11 +144,8 @@ UIThemeManager::UIThemeManager()
     if (!m_themeSource)
         m_themeSource = std::make_unique<DefaultThemeSource>();
 
-    if (m_useCustomTheme)
-    {
-        applyPalette();
-        applyStyleSheet();
-    }
+    applyPalette();
+    applyStyleSheet();
 }
 
 UIThemeManager *UIThemeManager::instance()
@@ -183,20 +200,52 @@ void UIThemeManager::setTrayIconStyle(const TrayIconStyle value)
 
 void UIThemeManager::applyStyleSheet() const
 {
-    qApp->setStyleSheet(QString::fromUtf8(m_themeSource->readStyleSheet()));
+    const QByteArray sheet = m_themeSource->readStyleSheet();
+    qApp->setStyleSheet(QString::fromUtf8(sheet));
 }
 
 void UIThemeManager::onColorSchemeChanged()
 {
+    if (m_themeSource)
+    {
+        applyPalette();
+        applyStyleSheet();
+    }
+
+#ifdef Q_OS_WIN
+    WindowsThemeHelper::applyAll();
+#endif
+
     emit themeChanged();
 
     // workaround to refresh styled controls once color scheme is changed
     QApplication::setStyle(QApplication::style()->name());
 }
 
-QIcon UIThemeManager::getIcon(const QString &iconId, [[maybe_unused]] const QString &fallback, const ColorMode colorMode) const
+QIcon UIThemeManager::getIcon(const QString &iconId, [[maybe_unused]] const QString &fallback, const ColorMode colorMode, const ThemeTokens::Token token) const
 {
+    const auto ttMode = (colorMode == ColorMode::Dark) ? ThemeTokens::Mode::Dark : ThemeTokens::Mode::Light;
     auto &icons = (colorMode == ColorMode::Dark) ? m_darkModeIcons : m_icons;
+
+    // Custom themes own their icon set: resolve them BEFORE the built-in
+    // TorrenterIcons so an override actually reaches the user.
+    const bool customTheme = (dynamic_cast<CustomThemeSource *>(m_themeSource.get()) != nullptr);
+    if (customTheme)
+    {
+        if (const auto iter = icons.find(iconId); iter != icons.end())
+            return *iter;
+        const QString customPath = m_themeSource->getIconPath(iconId, colorMode).data();
+        if (!customPath.isEmpty() && QFile::exists(customPath))
+        {
+            const QIcon icon {customPath};
+            icons[iconId] = icon;
+            return icon;
+        }
+    }
+
+    if (const QIcon tinted = TorrenterIcons::icon(iconId, token, ttMode);
+        !tinted.isNull())
+        return tinted;
 
     const auto iter = icons.find(iconId);
     if (iter != icons.end())
@@ -220,8 +269,18 @@ QIcon UIThemeManager::getIcon(const QString &iconId, [[maybe_unused]] const QStr
 
 QIcon UIThemeManager::getIcon(const QString &iconId, const QString &fallback) const
 {
+    return getIcon(iconId, ThemeTokens::Token::Text2, fallback);
+}
+
+QIcon UIThemeManager::getIcon(const QString &iconId, const ThemeTokens::Token token, const QString &fallback) const
+{
     const auto colorMode = isDarkTheme() ? ColorMode::Dark : ColorMode::Light;
-    return getIcon(iconId, fallback, colorMode);
+    return getIcon(iconId, fallback, colorMode, token);
+}
+
+QIcon UIThemeManager::activeIcon(const QString &iconId, const QString &fallback) const
+{
+    return getIcon(iconId, ThemeTokens::Token::Accent, fallback);
 }
 
 QIcon UIThemeManager::getSystrayIcon() const
@@ -238,10 +297,10 @@ QIcon UIThemeManager::getSystrayIcon() const
     switch (trayIconStyle())
     {
     case TrayIconStyle::Normal:
-        return getIcon(u"qbittorrent-tray"_s, {}, colorMode);
+        return getIcon(u"qbittorrent-tray"_s, {}, colorMode, ThemeTokens::Token::Text2);
 
     case TrayIconStyle::Monochrome:
-        return getIcon(u"qbittorrent-tray-mono"_s, fallback, colorMode);
+        return getIcon(u"qbittorrent-tray-mono"_s, fallback, colorMode, ThemeTokens::Token::Text2);
     }
 
     Q_UNREACHABLE_RETURN({});
@@ -350,10 +409,14 @@ void UIThemeManager::applyPalette() const
     };
 
     QPalette palette = qApp->palette();
+    const ColorMode colorMode = (ThemeTokens::currentMode() == ThemeTokens::Mode::Dark)
+            ? ColorMode::Dark : ColorMode::Light;
     for (const ColorDescriptor &colorDescriptor : paletteColorDescriptors)
     {
-        // For backward compatibility, the palette color overrides are read from the section of the "light mode" colors
-        const QColor newColor = m_themeSource->getColor(colorDescriptor.id, ColorMode::Light);
+        QColor newColor = m_themeSource->getColor(colorDescriptor.id, colorMode);
+        if (!newColor.isValid())
+            newColor = m_themeSource->getColor(colorDescriptor.id,
+                (colorMode == ColorMode::Dark) ? ColorMode::Light : ColorMode::Dark);
         if (newColor.isValid())
             palette.setColor(colorDescriptor.colorGroup, colorDescriptor.colorRole, newColor);
     }

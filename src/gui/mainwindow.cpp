@@ -28,6 +28,10 @@
  */
 
 #include "mainwindow.h"
+#include <QHBoxLayout>
+#include <QToolButton>
+#include <QTimer>
+#include <QWidgetAction>
 
 #include <QtProcessorDetection>
 #include <QtSystemDetection>
@@ -37,6 +41,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QComboBox>
@@ -45,6 +50,7 @@
 #include <QFileDialog>
 #include <QFileSystemWatcher>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMetaObject>
@@ -56,7 +62,6 @@
 #include <QSplitter>
 #include <QStatusBar>
 #include <QString>
-#include <QTimer>
 
 #ifdef Q_OS_WIN
 #include <QCryptographicHash>
@@ -96,11 +101,14 @@
 #include "speedlimitdialog.h"
 #include "statsdialog.h"
 #include "statusbar.h"
+#include "themetokens.h"
+#include "torrentericons.h"
 #include "torrentcreatordialog.h"
 #include "trackerlist/trackerlistwidget.h"
 #include "transferlistfilterswidget.h"
 #include "transferlistmodel.h"
 #include "transferlistwidget.h"
+#include "transferlistfilters/statusfilterwidget.h"
 #include "ui_mainwindow.h"
 #include "uithememanager.h"
 #include "utils.h"
@@ -127,6 +135,45 @@ namespace
 #define EXECUTIONLOG_SETTINGS_KEY(name) (SETTINGS_KEY(u"Log/"_s) name)
 
     const std::chrono::seconds PREVENT_SUSPEND_INTERVAL {60};
+
+    QString tokenCss(const ThemeTokens::Token token)
+    {
+        const QColor color = ThemeTokens::color(token, ThemeTokens::currentMode());
+        return u"rgba(%1,%2,%3,%4)"_s.arg(color.red()).arg(color.green()).arg(color.blue()).arg(color.alpha());
+    }
+
+    // Search field: fixed 280 px wide (240 px minimum), 30 px tall.
+    class SearchFieldFrame final : public QWidget
+    {
+    public:
+        explicit SearchFieldFrame(QWidget *parent = nullptr)
+            : QWidget(parent)
+        {
+        }
+
+        QSize sizeHint() const override
+        {
+            return {280, 30};
+        }
+
+        QSize minimumSizeHint() const override
+        {
+            return {240, 30};
+        }
+
+        QLabel *hint = nullptr;
+        QWidget *pill = nullptr;
+        QLineEdit *edit = nullptr;
+        std::function<void()> relayout;
+
+    protected:
+        void resizeEvent(QResizeEvent *event) override
+        {
+            QWidget::resizeEvent(event);
+            if (relayout)
+                relayout();
+        }
+    };
 
 #if defined(Q_OS_WIN)
 #if defined(Q_PROCESSOR_X86_64)
@@ -175,6 +222,59 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     addToolbarContextMenu();
 
     m_ui->actionOpen->setIcon(UIThemeManager::instance()->getIcon(u"list-add"_s));
+    // QA-v6 items 4 & 5: rebuild the toolbar in the specified order.
+    for (QAction *action : m_ui->toolBar->actions())
+        m_ui->toolBar->removeAction(action);
+
+    const auto makeToolbarButton = [this](QAction *action, const QString &objectName)
+    {
+        auto *button = new QToolButton(this);
+        button->setObjectName(objectName);
+        button->setDefaultAction(action);
+        button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        button->setFixedSize(32, 32);
+        return button;
+    };
+
+    // One true split button: plus icon + "Add" + 1 px divider + chevron.
+    auto *addButton = new QToolButton(this);
+    addButton->setObjectName(u"torrenterAddButton"_s);
+    addButton->setDefaultAction(m_ui->actionOpen);
+    addButton->setPopupMode(QToolButton::MenuButtonPopup);
+    addButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    addButton->setFixedHeight(32);
+    auto *addMenu = new QMenu(addButton);
+    QAction *addFileAction = addMenu->addAction(m_ui->actionOpen->icon(), tr("Add file"));
+    connect(addFileAction, &QAction::triggered, m_ui->actionOpen, &QAction::trigger);
+    QAction *addLinkAction = addMenu->addAction(m_ui->actionDownloadFromURL->icon(), tr("Add magnet link"));
+    connect(addLinkAction, &QAction::triggered, m_ui->actionDownloadFromURL, &QAction::trigger);
+    QAction *createTorrentAction = addMenu->addAction(m_ui->actionCreateTorrent->icon(), tr("Create torrent"));
+    connect(createTorrentAction, &QAction::triggered, m_ui->actionCreateTorrent, &QAction::trigger);
+    addButton->setMenu(addMenu);
+    const auto syncAddLabel = [this, addButton]()
+    {
+        addButton->setText(tr("Add"));
+        // QA-v8 item 4: the primary button glyph must use OnAccent, matching
+        // the "Add" label and the menu chevron in both themes.
+        addButton->setIcon(TorrenterIcons::icon(u"list-add"_s, ThemeTokens::Token::OnAccent
+            , ThemeTokens::currentMode()));
+    };
+    syncAddLabel();
+    connect(m_ui->actionOpen, &QAction::changed, addButton, syncAddLabel);
+    addButton->setStyleSheet(
+        QStringLiteral("QToolButton#torrenterAddButton { background: %1; color: %2; border: none; border-radius: 8px;"
+            " min-height: 32px; padding: 0 8px 0 12px; font-weight: 600; }"
+            " QToolButton#torrenterAddButton:hover { background: %3; }"
+            " QToolButton#torrenterAddButton:pressed { background: %4; }"
+            " QToolButton#torrenterAddButton::menu-button { border-left: 1px solid %5;"
+            " border-top-right-radius: 8px; border-bottom-right-radius: 8px; width: 20px; background: transparent; }"
+            " QToolButton#torrenterAddButton::menu-button:hover { background: %4; }")
+        .arg(tokenCss(ThemeTokens::Token::Accent), tokenCss(ThemeTokens::Token::OnAccent)
+            , tokenCss(ThemeTokens::Token::AccentHover), tokenCss(ThemeTokens::Token::AccentPress)
+            , tokenCss(ThemeTokens::Token::Line)));
+    m_ui->toolBar->addWidget(addButton);
+    m_ui->toolBar->addAction(m_ui->actionDownloadFromURL);
+    m_ui->toolBar->addSeparator();
     m_ui->actionDownloadFromURL->setIcon(UIThemeManager::instance()->getIcon(u"insert-link"_s));
     m_ui->actionSetGlobalSpeedLimits->setIcon(UIThemeManager::instance()->getIcon(u"speedometer"_s));
     m_ui->actionCreateTorrent->setIcon(UIThemeManager::instance()->getIcon(u"torrent-creator"_s, u"document-edit"_s));
@@ -200,6 +300,9 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     m_ui->menuLog->setIcon(UIThemeManager::instance()->getIcon(u"help-contents"_s));
     m_ui->actionCheckForUpdates->setIcon(UIThemeManager::instance()->getIcon(u"view-refresh"_s));
     m_ui->actionOpenDestinationFolder->setIcon(UIThemeManager::instance()->getIcon(u"directory"_s, u"folder"_s));
+    addLinkAction->setIcon(m_ui->actionDownloadFromURL->icon());
+    createTorrentAction->setIcon(m_ui->actionCreateTorrent->icon());
+    m_ui->actionUseAlternativeSpeedLimits->setIcon(UIThemeManager::instance()->getIcon(u"slow"_s));
 
     m_ui->actionPauseSession->setVisible(!BitTorrent::Session::instance()->isPaused());
     m_ui->actionResumeSession->setVisible(BitTorrent::Session::instance()->isPaused());
@@ -237,33 +340,165 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     hSplitter->setChildrenCollapsible(false);
     hSplitter->setFrameShape(QFrame::NoFrame);
 
-    // Torrent filter
-    auto *columnFilterSpacer = new QWidget;
-    columnFilterSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    // Toolbar groups and search field (QA-v6 item 5).
+    const QString groupButtonCss = QStringLiteral(
+        " QToolButton { background: transparent; border: none; border-radius: 6px; padding: 0 8px; }"
+        " QToolButton:hover { background: %1; color: %2; }"
+        " QToolButton:pressed { background: %3; }")
+        .arg(tokenCss(ThemeTokens::Token::Hover), tokenCss(ThemeTokens::Token::Text1)
+            , tokenCss(ThemeTokens::Token::Pressed));
+    const QString groupTrackCss = QStringLiteral(
+        "QWidget { background: %1; border: 1px solid %2; border-radius: 9px; }")
+        .arg(tokenCss(ThemeTokens::Token::Raised), tokenCss(ThemeTokens::Token::LineSubtle));
 
-    m_columnFilterEdit = new LineEdit;
+    auto *startStopGroup = new QWidget(this);
+    startStopGroup->setObjectName(u"torrenterStartStopGroup"_s);
+    auto *startStopLayout = new QHBoxLayout(startStopGroup);
+    startStopLayout->setContentsMargins(2, 2, 2, 2);
+    startStopLayout->setSpacing(0);
+    startStopLayout->addWidget(makeToolbarButton(m_ui->actionStart, u"torrenterGroupButton"_s));
+    startStopLayout->addWidget(makeToolbarButton(m_ui->actionStop, u"torrenterGroupButton"_s));
+    startStopGroup->setStyleSheet(groupTrackCss + groupButtonCss);
+    m_ui->toolBar->addWidget(startStopGroup);
+
+    m_queueGroup = new QWidget(this);
+    m_queueGroup->setObjectName(u"torrenterQueueGroup"_s);
+    auto *queueLayout = new QHBoxLayout(m_queueGroup);
+    queueLayout->setContentsMargins(2, 2, 2, 2);
+    queueLayout->setSpacing(0);
+    queueLayout->addWidget(makeToolbarButton(m_ui->actionTopQueuePos, u"torrenterGroupButton"_s));
+    queueLayout->addWidget(makeToolbarButton(m_ui->actionIncreaseQueuePos, u"torrenterGroupButton"_s));
+    queueLayout->addWidget(makeToolbarButton(m_ui->actionDecreaseQueuePos, u"torrenterGroupButton"_s));
+    queueLayout->addWidget(makeToolbarButton(m_ui->actionBottomQueuePos, u"torrenterGroupButton"_s));
+    m_queueGroup->setStyleSheet(groupTrackCss + groupButtonCss);
+    m_ui->toolBar->addWidget(m_queueGroup);
+
+    m_ui->toolBar->addAction(m_ui->actionDelete);
+    m_ui->toolBar->addSeparator();
+    m_ui->toolBar->addAction(m_ui->actionCreateTorrent);
+
+    auto *toolbarSpacer = new QWidget(this);
+    toolbarSpacer->setObjectName(u"torrenterToolbarSpacer"_s);
+    toolbarSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_ui->toolBar->addWidget(toolbarSpacer);
+
+    // Search field: 280 px frame with the chip overlay; Name pill sits outside with a 12 px gap.
+    auto *searchContainer = new QWidget(this);
+    searchContainer->setObjectName(u"torrenterSearchFieldContainer"_s);
+    auto *searchContainerLayout = new QHBoxLayout(searchContainer);
+    searchContainerLayout->setContentsMargins(0, 0, 0, 0);
+    searchContainerLayout->setSpacing(12);
+
+    auto *searchFrame = new SearchFieldFrame(this);
+    m_columnFilterWidget = searchFrame;
+    m_columnFilterWidget->setObjectName(u"torrenterSearchField"_s);
+    m_columnFilterWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    m_columnFilterWidget->setFixedWidth(280);
+    m_columnFilterWidget->setFixedHeight(30);
+    auto *searchLayout = new QHBoxLayout(m_columnFilterWidget);
+    searchLayout->setContentsMargins(0, 0, 0, 0);
+    searchLayout->setSpacing(0);
+    searchContainerLayout->addWidget(searchFrame);
+
+    m_columnFilterEdit = new LineEdit(m_columnFilterWidget);
     m_columnFilterEdit->setContextMenuPolicy(Qt::CustomContextMenu);
-    m_columnFilterEdit->setFixedWidth(200);
-    m_columnFilterEdit->setPlaceholderText(tr("Filter torrents..."));
-    m_columnFilterEdit->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    m_columnFilterEdit->setObjectName(u"torrenterSearchEdit"_s);
+    m_columnFilterEdit->setPlaceholderText(tr("Search torrents"));
+    m_columnFilterEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_columnFilterEdit->setStyleSheet(QStringLiteral(
+        "QLineEdit#torrenterSearchEdit { background: transparent; border: none; font-size: 11px; color: %1; }")
+        .arg(tokenCss(ThemeTokens::Token::Text1)));
     connect(m_columnFilterEdit, &QWidget::customContextMenuRequested, this, &MainWindow::showFilterContextMenu);
 
-    m_columnFilterComboBox = new QComboBox;
+    m_searchHint = new QLabel(tr("Ctrl F"), m_columnFilterWidget);
+    m_searchHint->setObjectName(u"torrenterSearchHint"_s);
+    m_searchHint->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    QHBoxLayout *columnFilterLayout = new QHBoxLayout;
-    columnFilterLayout->setContentsMargins(0, 0, 0, 0);
-    columnFilterLayout->addWidget(columnFilterSpacer);
-    columnFilterLayout->addWidget(m_columnFilterEdit);
-    columnFilterLayout->addWidget(new QLabel(tr("Filter by:")), 0);
-    columnFilterLayout->addWidget(m_columnFilterComboBox, 0);
+    m_columnFilterComboBox = new QComboBox(searchContainer);
+    m_columnFilterComboBox->setObjectName(u"torrenterScopePill"_s);
+    m_columnFilterComboBox->setAccessibleName(tr("Filter by:"));  // hidden label kept as accessible name
+    m_columnFilterComboBox->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    m_columnFilterComboBox->setFixedWidth(64);
+    m_columnFilterComboBox->setStyleSheet(QStringLiteral(
+        "QComboBox#torrenterScopePill { background: %1; border: none; border-radius: 999px;"
+        " padding: 0 6px 0 10px; min-height: 24px; color: %2; font-size: 12px; font-weight: 500; }"
+        " QComboBox#torrenterScopePill::drop-down { width: 14px; border: none; }"
+        " QComboBox#torrenterScopePill::down-arrow { width: 12px; height: 12px; }")
+        .arg(tokenCss(ThemeTokens::Token::Pressed), tokenCss(ThemeTokens::Token::Text1)));
 
-    m_columnFilterWidget = new QWidget(this);
-    m_columnFilterWidget->setLayout(columnFilterLayout);
-    m_columnFilterAction = m_ui->toolBar->insertWidget(m_ui->actionLock, m_columnFilterWidget);
+    searchLayout->addWidget(m_columnFilterEdit, 1);
+    searchContainerLayout->addWidget(m_columnFilterComboBox, 0, Qt::AlignVCenter);
+    searchFrame->hint = m_searchHint;
+    searchFrame->edit = m_columnFilterEdit;
 
-    auto *spacer = new QWidget(this);
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_ui->toolBar->insertWidget(m_columnFilterAction, spacer);
+    const auto relayoutSearchField = [this]()
+    {
+        if (!m_columnFilterEdit || !m_searchHint || !m_columnFilterComboBox || !m_columnFilterWidget)
+            return;
+        const QSize chipSize = m_searchHint->sizeHint();
+        const int chipWidth = chipSize.width();
+        const QRect editRect = m_columnFilterEdit->geometry();
+        const int rightEdge = editRect.right();
+        m_searchHint->setGeometry(rightEdge - 8 - chipWidth
+            , (m_columnFilterWidget->height() - chipSize.height()) / 2
+            , chipWidth, chipSize.height());
+
+        const int placeholderWidth = m_columnFilterEdit->fontMetrics()
+            .horizontalAdvance(m_columnFilterEdit->placeholderText());
+        const bool chipFits = !m_compactMode
+            && (editRect.width() - 30 - (chipWidth + 12) >= placeholderWidth);
+        const bool showChip = chipFits && m_columnFilterEdit->text().isEmpty()
+            && !m_columnFilterEdit->hasFocus();
+        m_searchHint->setVisible(showChip);
+        m_columnFilterEdit->setTextMargins(30, 0, showChip ? (chipWidth + 12) : 12, 0);
+        m_searchHint->raise();
+    };
+    searchFrame->relayout = relayoutSearchField;
+    m_relayoutSearchField = relayoutSearchField;
+    relayoutSearchField();
+
+    m_columnFilterWidget->setStyleSheet(QStringLiteral(
+        "QWidget#torrenterSearchField { background: %1; border: 1px solid %2; border-radius: 8px; }"
+        " QLabel#torrenterSearchHint { color: %3; border: 1px solid %4; border-radius: 5px;"
+        " padding: 1px 2px; font-size: 11px; background: transparent; }")
+        .arg(tokenCss(ThemeTokens::Token::DialogField), tokenCss(ThemeTokens::Token::Line)
+            , tokenCss(ThemeTokens::Token::Text3), tokenCss(ThemeTokens::Token::LineStrong)));
+    m_columnFilterAction = m_ui->toolBar->addWidget(searchContainer);
+
+    const auto updateSearchHint = [this]()
+    {
+        if (m_relayoutSearchField)
+            m_relayoutSearchField();
+    };
+    updateSearchHint();
+    connect(m_columnFilterEdit, &QLineEdit::textChanged, this, [updateSearchHint](const QString &) { updateSearchHint(); });
+    connect(qApp, &QApplication::focusChanged, this, [this, updateSearchHint](QWidget *, QWidget *)
+    {
+        updateSearchHint();
+    });
+
+    // Trailing utilities: alt speed, Lock, Options.
+    m_ui->toolBar->addWidget(makeToolbarButton(m_ui->actionUseAlternativeSpeedLimits, u"torrenterToolButton"_s));
+    auto *lockContainer = new QWidget(this);
+    auto *lockLayout = new QHBoxLayout(lockContainer);
+    lockLayout->setContentsMargins(0, 0, 12, 0);
+    lockLayout->setSpacing(0);
+    auto *lockButton = new QToolButton(lockContainer);
+    lockButton->setObjectName(u"torrenterToolButton"_s);
+    lockButton->setDefaultAction(m_ui->actionLock);
+    lockButton->setPopupMode(QToolButton::InstantPopup);
+    lockButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    lockButton->setFixedSize(32, 32);
+    lockLayout->addWidget(lockButton);
+    m_ui->toolBar->addWidget(lockContainer);
+    connect(m_ui->actionLock, &QAction::changed, lockButton, [lockButton, this]
+    {
+        lockButton->setVisible(m_ui->actionLock->isVisible());
+    });
+    m_ui->toolBar->addAction(m_ui->actionOptions);
+
+    m_ui->toolBar->setIconSize(QSize(18, 18));
+    m_tabs->setObjectName(u"torrenterPropertiesTabs"_s);
 
     // Transfer List tab
     m_transferListWidget = new TransferListWidget(app, this);
@@ -306,7 +541,70 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
 
     m_ui->centralWidgetLayout->addWidget(m_tabs);
 
-    m_queueSeparator = m_ui->toolBar->insertSeparator(m_ui->actionTopQueuePos);
+    // Phase G: compact mode widgets. The chip row sits above the transfer
+    // tabs; the sidebar is reparented into an overlay drawer while compact.
+    m_compactChipRow = new QWidget(this);
+    m_compactChipRow->setObjectName(u"torrenterCompactChips"_s);
+    m_compactChipRow->setFixedHeight(26);
+    auto *chipLayout = new QHBoxLayout(m_compactChipRow);
+    chipLayout->setContentsMargins(8, 0, 8, 0);
+    chipLayout->setSpacing(6);
+    const QStringList chipNames {tr("All"), tr("Downloading"), tr("Seeding"), tr("Completed"), tr("Stalled"), tr("Errored")};
+    for (int i = 0; i < chipNames.size(); ++i)
+    {
+        auto *chip = new QToolButton(m_compactChipRow);
+        chip->setObjectName(u"torrenterStatusChip"_s);
+        chip->setProperty("variant", QStringLiteral("chip"));
+        chip->setFixedHeight(26);
+        chip->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        chip->setText(chipNames.at(i) + u" 0"_s);
+        chipLayout->addWidget(chip);
+        m_compactChips.append(chip);
+        connect(chip, &QToolButton::clicked, this, [this, i]()
+        {
+            if (auto *filters = m_transferListFiltersWidget)
+            {
+                if (auto *status = filters->findChild<StatusFilterWidget *>())
+                    status->setCurrentRow(i);
+            }
+            updateCompactChips();
+        });
+    }
+    chipLayout->addStretch();
+    m_ui->centralWidgetLayout->insertWidget(0, m_compactChipRow);
+    m_compactChipRow->hide();
+
+    m_compactDrawer = new QWidget(m_splitter);
+    m_compactDrawer->setObjectName(u"torrenterCompactDrawer"_s);
+    m_compactDrawer->setAutoFillBackground(true);
+    m_compactDrawer->hide();
+    m_compactDrawer->raise();
+
+    m_compactDrawerToggle = new QToolButton(this);
+    m_compactDrawerToggle->setObjectName(u"torrenterCompactDrawerToggle"_s);
+    m_compactDrawerToggle->setIcon(UIThemeManager::instance()->getIcon(u"panel-left"_s));
+    m_compactDrawerToggle->setToolTip(tr("Show sidebar"));
+    m_compactDrawerToggle->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    m_compactDrawerToggleAction = m_ui->toolBar->insertWidget(m_ui->toolBar->actions().value(0), m_compactDrawerToggle);
+    m_compactDrawerToggleAction->setVisible(false);
+    connect(m_compactDrawerToggle, &QToolButton::clicked, this, [this]()
+    {
+        m_compactDrawerOpen = !m_compactDrawerOpen;
+        m_compactDrawer->setVisible(m_compactDrawerOpen);
+        m_compactDrawer->raise();
+    });
+
+    m_compactOverflow = new QToolButton(this);
+    m_compactOverflow->setObjectName(u"torrenterCompactOverflow"_s);
+    m_compactOverflow->setIcon(UIThemeManager::instance()->getIcon(u"more-horizontal"_s));
+    m_compactOverflow->setToolTip(tr("More actions"));
+    m_compactOverflow->setPopupMode(QToolButton::InstantPopup);
+    m_compactOverflow->setMenu(new QMenu(m_compactOverflow));
+    m_compactOverflowAction = m_ui->toolBar->addWidget(m_compactOverflow);
+    m_compactOverflowAction->setVisible(false);
+
+    // Queue visibility is handled by the segmented queue group; the Edit menu keeps its separator.
+    m_queueSeparator = nullptr;
     m_queueSeparatorMenu = m_ui->menuEdit->insertSeparator(m_ui->actionTopQueuePos);
 
 #ifdef Q_OS_MACOS
@@ -324,8 +622,7 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
 
             QAction *widgetAction = m_ui->toolBar->insertWidget(action, line);
             m_ui->toolBar->removeAction(action);
-            if (action == m_queueSeparator)
-                m_queueSeparator = widgetAction;
+            Q_UNUSED(widgetAction);
         }
     }
 #endif // Q_OS_MACOS
@@ -336,6 +633,10 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     connect(m_ui->actionPauseSession, &QAction::triggered, m_transferListWidget, &TransferListWidget::pauseSession);
     connect(m_ui->actionResumeSession, &QAction::triggered, m_transferListWidget, &TransferListWidget::resumeSession);
     connect(m_ui->actionOpenDestinationFolder, &QAction::triggered, m_transferListWidget, &TransferListWidget::openSelectedTorrentsFolder);
+    connect(m_transferListWidget, &TransferListWidget::addTorrentRequested
+            , m_ui->actionOpen, &QAction::trigger);
+    connect(m_transferListWidget, &TransferListWidget::addMagnetLinkRequested
+            , m_ui->actionDownloadFromURL, &QAction::trigger);
     connect(m_ui->actionDelete, &QAction::triggered, m_transferListWidget, &TransferListWidget::softDeleteSelectedTorrents);
     connect(m_ui->actionTopQueuePos, &QAction::triggered, m_transferListWidget, &TransferListWidget::topQueuePosSelectedTorrents);
     connect(m_ui->actionIncreaseQueuePos, &QAction::triggered, m_transferListWidget, &TransferListWidget::increaseQueuePosSelectedTorrents);
@@ -456,6 +757,24 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     });
 #endif
     connect(app->desktopIntegration(), &DesktopIntegration::notificationClicked, this, &MainWindow::desktopNotificationClicked);
+#ifdef TORRENTER_QA_HOOKS
+    // QA-only hooks for scripted screenshots (no UI input required).
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_OPTIONS"))
+        QTimer::singleShot(1200, this, [this] { on_actionOptions_triggered(); });
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_LINKS"))
+        QTimer::singleShot(1400, this, [this] { on_actionDownloadFromURL_triggered(); });
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_STATS"))
+        QTimer::singleShot(1600, this, [this] { on_actionStatistics_triggered(); });
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_DELETE"))
+        QTimer::singleShot(2600, this, [this]()
+        {
+            if (m_transferListWidget == nullptr)
+                return;
+            m_transferListWidget->selectAll();
+            m_transferListWidget->deleteSelectedTorrents(false);
+        });
+#endif
+
     connect(app->desktopIntegration(), &DesktopIntegration::activationRequested, this, [this]()
     {
 #ifdef Q_OS_MACOS
@@ -495,7 +814,7 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
                 hide();
                 if (!pref->minimizeToTrayNotified())
                 {
-                    app->desktopIntegration()->showNotification(tr("qBittorrent is minimized to tray"), tr("This behavior can be changed in the settings. You won't be reminded again."));
+                    app->desktopIntegration()->showNotification(tr("Torrenter is minimized to tray"), tr("This behavior can be changed in the settings. You won't be reminded again."));
                     pref->setMinimizeToTrayNotified(true);
                 }
             }
@@ -549,7 +868,69 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     populatePluginsMenu();
 #endif
 
+    connect(UIThemeManager::instance(), &UIThemeManager::themeChanged, this, &MainWindow::refreshToolbarStyles);
+
     qDebug("GUI Built");
+}
+
+void MainWindow::refreshToolbarStyles()
+{
+    if (auto *addButton = findChild<QToolButton *>(u"torrenterAddButton"_s))
+    {
+        addButton->setStyleSheet(
+            QStringLiteral("QToolButton#torrenterAddButton { background: %1; color: %2; border: none; border-radius: 8px;"
+                " min-height: 32px; padding: 0 8px 0 12px; font-weight: 600; }"
+                " QToolButton#torrenterAddButton:hover { background: %3; }"
+                " QToolButton#torrenterAddButton:pressed { background: %4; }"
+                " QToolButton#torrenterAddButton::menu-button { border-left: 1px solid %5;"
+                " border-top-right-radius: 8px; border-bottom-right-radius: 8px; width: 20px; background: transparent; }"
+                " QToolButton#torrenterAddButton::menu-button:hover { background: %4; }")
+            .arg(tokenCss(ThemeTokens::Token::Accent), tokenCss(ThemeTokens::Token::OnAccent)
+                , tokenCss(ThemeTokens::Token::AccentHover), tokenCss(ThemeTokens::Token::AccentPress)
+                , tokenCss(ThemeTokens::Token::Line)));
+    }
+
+    const QString groupButtonCss = QStringLiteral(
+        " QToolButton { background: transparent; border: none; border-radius: 6px; padding: 0 8px; }"
+        " QToolButton:hover { background: %1; color: %2; }"
+        " QToolButton:pressed { background: %3; }")
+        .arg(tokenCss(ThemeTokens::Token::Hover), tokenCss(ThemeTokens::Token::Text1)
+            , tokenCss(ThemeTokens::Token::Pressed));
+    const QString groupTrackCss = QStringLiteral(
+        "QWidget { background: %1; border: 1px solid %2; border-radius: 9px; }")
+        .arg(tokenCss(ThemeTokens::Token::Raised), tokenCss(ThemeTokens::Token::LineSubtle));
+    for (const auto &name : {u"torrenterStartStopGroup"_s, u"torrenterQueueGroup"_s})
+    {
+        if (auto *group = findChild<QWidget *>(name))
+            group->setStyleSheet(groupTrackCss + groupButtonCss);
+    }
+
+    if (m_columnFilterEdit)
+    {
+        m_columnFilterEdit->setStyleSheet(QStringLiteral(
+            "QLineEdit { background: transparent; border: none; padding: 0; color: %1; }")
+            .arg(tokenCss(ThemeTokens::Token::Text1)));
+    }
+    if (m_columnFilterComboBox)
+    {
+        m_columnFilterComboBox->setStyleSheet(QStringLiteral(
+            "QComboBox#torrenterScopePill { background: %1; border: none; border-radius: 999px;"
+            " padding: 0 6px 0 10px; min-height: 24px; color: %2; font-size: 12px; font-weight: 500; }"
+            " QComboBox#torrenterScopePill::drop-down { width: 14px; border: none; }"
+            " QComboBox#torrenterScopePill::down-arrow { width: 12px; height: 12px; }")
+            .arg(tokenCss(ThemeTokens::Token::Pressed), tokenCss(ThemeTokens::Token::Text1)));
+    }
+    if (m_columnFilterWidget)
+    {
+        m_columnFilterWidget->setStyleSheet(QStringLiteral(
+            "QWidget#torrenterSearchField { background: %1; border: 1px solid %2; border-radius: 8px; }"
+            " QLabel#torrenterSearchHint { color: %3; border: 1px solid %4; border-radius: 5px;"
+            " padding: 1px 2px; font-size: 11px; background: transparent; }")
+            .arg(tokenCss(ThemeTokens::Token::DialogField), tokenCss(ThemeTokens::Token::Line)
+                , tokenCss(ThemeTokens::Token::Text3), tokenCss(ThemeTokens::Token::LineStrong)));
+    }
+    if (m_relayoutSearchField)
+        m_relayoutSearchField();
 }
 
 MainWindow::~MainWindow()
@@ -594,7 +975,7 @@ void MainWindow::setTitleSuffix(const QString &suffix)
 {
     const auto emDash = QChar(0x2014);
     const QString separator = u' ' + emDash + u' ';
-    m_windowTitle = QStringLiteral("qBittorrent " QBT_VERSION)
+    m_windowTitle = QStringLiteral("Torrenter " QBT_VERSION)
         + (!suffix.isEmpty() ? (separator + suffix) : QString());
 
     refreshWindowTitle();
@@ -1152,6 +1533,136 @@ void MainWindow::on_actionStatistics_triggered()
     }
 }
 
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    setCompactMode(width() < 960);
+    if (m_compactMode && m_compactDrawer)
+        m_compactDrawer->setGeometry(0, 0, 220, m_splitter->height());
+}
+
+void MainWindow::setCompactMode(bool enabled)
+{
+    if (m_compactMode == enabled)
+        return;
+    m_compactMode = enabled;
+
+    m_compactChipRow->setVisible(enabled);
+    m_compactDrawerToggleAction->setVisible(enabled);
+    m_compactOverflowAction->setVisible(enabled);
+    m_ui->toolBar->setProperty("compact", enabled);
+    m_ui->toolBar->style()->unpolish(m_ui->toolBar);
+    m_ui->toolBar->style()->polish(m_ui->toolBar);
+    m_transferListWidget->setCompactMode(enabled);
+
+    if (enabled)
+    {
+        updateCompactChips();
+        m_compactSearchWidth = m_columnFilterWidget->width();
+        m_columnFilterWidget->setFixedWidth(200);
+        m_columnFilterEdit->setPlaceholderText(tr("Search"));
+
+        const auto keepVisible = [](QAction *action)
+        {
+            const QString name = action->objectName();
+            QWidget *w = (qobject_cast<QWidgetAction *>(action)
+                ? qobject_cast<QWidgetAction *>(action)->defaultWidget() : nullptr);
+            const QString widgetName = w ? w->objectName() : QString();
+            return name.contains(u"actionOpen") || name.contains(u"actionStart")
+                || name.contains(u"actionStop") || name.contains(u"actionDelete")
+                || widgetName.contains(u"torrenterToolbarSpacer")
+                || widgetName.contains(u"torrenterAddButton")
+                || widgetName.contains(u"torrenterStartStopGroup")
+                || widgetName.contains(u"torrenterSearchField");
+        };
+        m_compactHiddenActions.clear();
+        m_compactOverflow->menu()->clear();
+        for (QAction *action : m_ui->toolBar->actions())
+        {
+            if ((action == m_compactDrawerToggleAction) || (action == m_compactOverflowAction))
+                continue;
+            if (!action->isVisible())
+                continue;
+            if (keepVisible(action))
+                continue;
+            m_compactHiddenActions.append(action);
+            action->setVisible(false);
+            m_compactOverflow->menu()->addAction(action);
+        }
+        if (auto *addButton = findChild<QToolButton *>(u"torrenterAddButton"_s))
+        {
+            addButton->setProperty("compactAdd", true);
+            addButton->style()->unpolish(addButton);
+            addButton->style()->polish(addButton);
+        }
+
+        if (m_transferListFiltersWidget)
+        {
+            m_sidebarSplitterIndex = m_splitter->indexOf(m_transferListFiltersWidget);
+            m_transferListFiltersWidget->setParent(m_compactDrawer);
+            auto *drawerLayout = m_compactDrawer->layout();
+            if (!drawerLayout)
+                drawerLayout = new QVBoxLayout(m_compactDrawer);
+            drawerLayout->setContentsMargins(0, 0, 0, 0);
+            drawerLayout->addWidget(m_transferListFiltersWidget);
+            m_transferListFiltersWidget->show();
+        }
+        m_compactDrawerOpen = false;
+        m_compactDrawer->hide();
+    }
+    else
+    {
+        if (m_transferListFiltersWidget && (m_transferListFiltersWidget->parent() == m_compactDrawer))
+        {
+            m_transferListFiltersWidget->setParent(m_splitter);
+            m_splitter->insertWidget(qMax(0, m_sidebarSplitterIndex), m_transferListFiltersWidget);
+            m_transferListFiltersWidget->show();
+        }
+        m_compactDrawer->hide();
+        for (QAction *action : m_compactHiddenActions)
+            action->setVisible(true);
+        m_compactHiddenActions.clear();
+        m_columnFilterWidget->setFixedWidth(280);
+        m_columnFilterEdit->setPlaceholderText(tr("Search torrents"));
+        m_compactSearchWidth = 280;
+        if (auto *addButton = findChild<QToolButton *>(u"torrenterAddButton"_s))
+        {
+            addButton->setProperty("compactAdd", false);
+            addButton->style()->unpolish(addButton);
+            addButton->style()->polish(addButton);
+        }
+    }
+    m_ui->toolBar->updateGeometry();
+    if (m_relayoutSearchField)
+        m_relayoutSearchField();
+}
+
+void MainWindow::updateCompactChips()
+{
+    if (!m_compactMode)
+        return;
+    const auto *status = m_transferListFiltersWidget
+        ? m_transferListFiltersWidget->findChild<StatusFilterWidget *>() : nullptr;
+    const int current = status ? status->currentRow() : 0;
+    const int rows[] = {0, 1, 2, 3, 8, 13};
+    for (int i = 0; i < m_compactChips.size(); ++i)
+    {
+        const int row = rows[i];
+        QString text = m_compactChips.at(i)->text();
+        const int space = text.lastIndexOf(u' ');
+        const QString base = (space > 0) ? text.left(space) : text;
+        QString count = status ? status->countText(row) : QStringLiteral("(0)");
+        const int open = count.indexOf(u'(');
+        const int close = count.lastIndexOf(u')');
+        if ((open >= 0) && (close > open))
+            count = count.mid(open + 1, close - open - 1);
+        m_compactChips.at(i)->setText(base + u" "_s + count);
+        m_compactChips.at(i)->setProperty("variant", (i == current) ? QStringLiteral("chipActive") : QStringLiteral("chip"));
+        m_compactChips.at(i)->style()->unpolish(m_compactChips.at(i));
+        m_compactChips.at(i)->style()->polish(m_compactChips.at(i));
+    }
+}
+
 void MainWindow::showEvent(QShowEvent *e)
 {
     qDebug("** Show Event **");
@@ -1227,7 +1738,7 @@ void MainWindow::closeEvent(QCloseEvent *e)
         QMetaObject::invokeMethod(this, &QWidget::hide, Qt::QueuedConnection);
         if (!pref->closeToTrayNotified())
         {
-            app()->desktopIntegration()->showNotification(tr("qBittorrent is closed to tray"), tr("This behavior can be changed in the settings. You won't be reminded again."));
+            app()->desktopIntegration()->showNotification(tr("Torrenter is closed to tray"), tr("This behavior can be changed in the settings. You won't be reminded again."));
             pref->setCloseToTrayNotified(true);
         }
         return;
@@ -1245,9 +1756,9 @@ void MainWindow::closeEvent(QCloseEvent *e)
         {
             if (!isVisible())
                 show();
-            QMessageBox confirmBox(QMessageBox::Question, tr("Exiting qBittorrent"),
+            QMessageBox confirmBox(QMessageBox::Question, tr("Exiting Torrenter"),
                                    // Split it because the last sentence is used in the WebUI
-                                   tr("Some files are currently transferring.") + u'\n' + tr("Are you sure you want to quit qBittorrent?"),
+                                   tr("Some files are currently transferring.") + u'\n' + tr("Are you sure you want to quit Torrenter?"),
                                    QMessageBox::NoButton, this);
             QPushButton *noBtn = confirmBox.addButton(tr("&No"), QMessageBox::NoRole);
             confirmBox.addButton(tr("&Yes"), QMessageBox::YesRole);
@@ -1320,7 +1831,7 @@ bool MainWindow::event(QEvent *e)
                     QMetaObject::invokeMethod(this, &QWidget::hide, Qt::QueuedConnection);
                     if (!pref->minimizeToTrayNotified())
                     {
-                        app()->desktopIntegration()->showNotification(tr("qBittorrent is minimized to tray"), tr("This behavior can be changed in the settings. You won't be reminded again."));
+                        app()->desktopIntegration()->showNotification(tr("Torrenter is minimized to tray"), tr("This behavior can be changed in the settings. You won't be reminded again."));
                         pref->setMinimizeToTrayNotified(true);
                     }
                     return true;
@@ -1391,13 +1902,17 @@ void MainWindow::showStatusBar(bool show)
         // Remove status bar
         setStatusBar(nullptr);
     }
-    else if (!m_statusBar)
+    else
     {
-        // Create status bar
-        m_statusBar = new StatusBar;
-        connect(m_statusBar.data(), &StatusBar::connectionButtonClicked, this, &MainWindow::showConnectionSettings);
-        connect(m_statusBar.data(), &StatusBar::alternativeSpeedsButtonClicked, this, &MainWindow::toggleAlternativeSpeeds);
-        setStatusBar(m_statusBar);
+        if (!m_statusBar)
+        {
+            // Create status bar
+            m_statusBar = new StatusBar;
+            connect(m_statusBar.data(), &StatusBar::connectionButtonClicked, this, &MainWindow::showConnectionSettings);
+            connect(m_statusBar.data(), &StatusBar::alternativeSpeedsButtonClicked, this, &MainWindow::toggleAlternativeSpeeds);
+        }
+        if (statusBar() != m_statusBar)
+            setStatusBar(m_statusBar);
     }
 }
 
@@ -1414,6 +1929,18 @@ void MainWindow::showFiltersSidebar(const bool show)
         m_splitter->setStretchFactor(0, 0);
         m_splitter->setStretchFactor(1, 1);
         m_splitter->setSizes({Preferences::instance()->getFiltersSidebarWidth()});
+        if (m_compactMode && m_compactDrawer)
+        {
+            m_sidebarSplitterIndex = m_splitter->indexOf(m_transferListFiltersWidget);
+            m_transferListFiltersWidget->setParent(m_compactDrawer);
+            auto *drawerLayout = m_compactDrawer->layout();
+            if (!drawerLayout)
+                drawerLayout = new QVBoxLayout(m_compactDrawer);
+            drawerLayout->setContentsMargins(0, 0, 0, 0);
+            drawerLayout->addWidget(m_transferListFiltersWidget);
+            m_transferListFiltersWidget->hide();
+        }
+        updateCompactChips();
     }
     else if (!show && m_transferListFiltersWidget)
     {
@@ -1456,7 +1983,7 @@ void MainWindow::loadPreferences()
             m_ui->actionIncreaseQueuePos->setVisible(true);
             m_ui->actionTopQueuePos->setVisible(true);
             m_ui->actionBottomQueuePos->setVisible(true);
-            m_queueSeparator->setVisible(true);
+            m_queueGroup->setVisible(true);
             m_queueSeparatorMenu->setVisible(true);
         }
     }
@@ -1469,7 +1996,7 @@ void MainWindow::loadPreferences()
             m_ui->actionIncreaseQueuePos->setVisible(false);
             m_ui->actionTopQueuePos->setVisible(false);
             m_ui->actionBottomQueuePos->setVisible(false);
-            m_queueSeparator->setVisible(false);
+            m_queueGroup->setVisible(false);
             m_queueSeparatorMenu->setVisible(false);
         }
     }
@@ -1722,7 +2249,7 @@ void MainWindow::handleUpdateCheckFinished(ProgramUpdater *updater, const bool i
         const QString msg {tr("A new version is available.") + u"<br/>"
             + tr("Do you want to download %1?").arg(newVersion.toString()) + u"<br/><br/>"
             + u"<a href=\"https://www.qbittorrent.org/news\">%1</a>"_s.arg(tr("Open changelog..."))};
-        auto *msgBox = new QMessageBox {QMessageBox::Question, tr("qBittorrent Update Available"), msg
+        auto *msgBox = new QMessageBox {QMessageBox::Question, tr("Torrenter Update Available"), msg
             , (QMessageBox::Yes | QMessageBox::No), this};
         msgBox->setAttribute(Qt::WA_DeleteOnClose);
         msgBox->setAttribute(Qt::WA_ShowWithoutActivating);
@@ -1742,7 +2269,7 @@ void MainWindow::handleUpdateCheckFinished(ProgramUpdater *updater, const bool i
     {
         if (invokedByUser)
         {
-            auto *msgBox = new QMessageBox {QMessageBox::Information, u"qBittorrent"_s
+            auto *msgBox = new QMessageBox {QMessageBox::Information, u"Torrenter"_s
                 , tr("No updates available.\nYou are already using the latest version.")
                 , QMessageBox::Ok, this};
             msgBox->setAttribute(Qt::WA_DeleteOnClose);

@@ -50,6 +50,7 @@
 #include "raisedmessagebox.h"
 #include "torrentcontentfiltermodel.h"
 #include "torrentcontentitemdelegate.h"
+#include "torrentcontentmodelitem.h"
 #include "torrentcontentlayoutdialog.h"
 #include "torrentcontentmodel.h"
 #include "torrentcontentmodelitem.h"
@@ -82,6 +83,9 @@ TorrentContentWidget::TorrentContentWidget(QWidget *parent)
     setExpandsOnDoubleClick(false);
     setSortingEnabled(true);
     setUniformRowHeights(true);
+    setIndentation(20);
+    setAnimated(true);
+    setAlternatingRowColors(false);
     header()->setSortIndicator(0, Qt::AscendingOrder);
     header()->setFirstSectionMovable(true);
     header()->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -99,6 +103,19 @@ TorrentContentWidget::TorrentContentWidget(QWidget *parent)
     auto *itemDelegate = new TorrentContentItemDelegate(this);
     setItemDelegate(itemDelegate);
 
+    // §5.3 column widths: Name stretches, the rest are fixed.
+    header()->setStretchLastSection(false);
+    header()->setSectionResizeMode(TorrentContentModelItem::COL_NAME, QHeaderView::Stretch);
+    const QList<int> fixedColumns {TorrentContentModelItem::COL_SIZE, TorrentContentModelItem::COL_PROGRESS,
+        TorrentContentModelItem::COL_PRIO, TorrentContentModelItem::COL_REMAINING,
+        TorrentContentModelItem::COL_AVAILABILITY};
+    const QList<int> fixedWidths {96, 180, 150, 96, 88};
+    for (int i = 0; i < fixedColumns.size(); ++i)
+    {
+        header()->setSectionResizeMode(fixedColumns.at(i), QHeaderView::Fixed);
+        header()->resizeSection(fixedColumns.at(i), fixedWidths.at(i));
+    }
+
     connect(this, &QAbstractItemView::clicked, this, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
     connect(this, &QAbstractItemView::doubleClicked, this, &TorrentContentWidget::onItemDoubleClicked);
     connect(this, &QWidget::customContextMenuRequested, this, &TorrentContentWidget::displayContextMenu);
@@ -111,6 +128,11 @@ TorrentContentWidget::TorrentContentWidget(QWidget *parent)
     connect(renameFileHotkey, &QShortcut::activated, this, &TorrentContentWidget::renameSelectedFile);
 
     connect(model(), &QAbstractItemModel::modelReset, this, &TorrentContentWidget::expandRecursively);
+}
+
+void TorrentContentWidget::setCompactHeaders(const bool compact)
+{
+    m_model->setCompactHeaders(compact);
 }
 
 void TorrentContentWidget::setContentHandler(BitTorrent::TorrentContentHandler *contentHandler)

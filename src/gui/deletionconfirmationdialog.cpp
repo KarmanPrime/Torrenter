@@ -29,7 +29,18 @@
 
 #include "deletionconfirmationdialog.h"
 
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QPushButton>
+#include <QSize>
+#include <QStyle>
+#include <QVBoxLayout>
+
+#include "torrentericons.h"
+#include "themetokens.h"
+#include "widgets/toggleswitch.h"
+#include "windowsthemehelper.h"
 
 #include "base/bittorrent/session.h"
 #include "base/preferences.h"
@@ -44,15 +55,51 @@ DeletionConfirmationDialog::DeletionConfirmationDialog(QWidget *parent, const in
 {
     m_ui->setupUi(this);
 
+    // Phase B / §5.10: 440 px dialog, rounded tile and inset error card.
+    setFixedWidth(440);
+    winId();
+#ifdef Q_OS_WIN
+    WindowsThemeHelper::apply(this);
+#endif
+    m_ui->labelWarning->setObjectName(QStringLiteral("deleteTile"));
+    m_ui->labelWarning->setFixedSize(36, 36);
+    m_ui->labelWarning->setAlignment(Qt::AlignCenter);
+    if (auto *top = findChild<QHBoxLayout *>(QStringLiteral("horizontalLayout")))
+    {
+        top->removeWidget(m_ui->label);
+        auto *texts = new QVBoxLayout;
+        texts->setSpacing(4);
+        texts->addWidget(m_ui->label);
+        auto *help = new QLabel(tr("They'll disappear from the list. Downloaded data stays on disk unless you choose otherwise."), this);
+        help->setObjectName(QStringLiteral("deleteHelp"));
+        help->setWordWrap(true);
+        texts->addWidget(help);
+        top->addLayout(texts, 1);
+    }
+    if (auto *row = findChild<QHBoxLayout *>(QStringLiteral("horizontalLayout_2")))
+    {
+        row->removeWidget(m_ui->checkRemoveContent);
+        auto *card = new QFrame(this);
+        card->setObjectName(QStringLiteral("deleteFilesCard"));
+        auto *cardLayout = new QHBoxLayout(card);
+        cardLayout->setContentsMargins(12, 10, 12, 10);
+        cardLayout->setSpacing(10);
+        auto *deleteLabel = new QLabel(tr("Also delete files"), card);
+        deleteLabel->setObjectName(QStringLiteral("deleteFilesLabel"));
+        m_ui->checkRemoveContent->setText({});
+        cardLayout->addWidget(deleteLabel, 1);
+        cardLayout->addWidget(m_ui->checkRemoveContent);
+        row->insertWidget(0, card);
+    }
+
     if (torrentsCount == 1)
         m_ui->label->setText(tr("Are you sure you want to remove '%1' from the transfer list?", "Are you sure you want to remove 'ubuntu-linux-iso' from the transfer list?").arg(name.toHtmlEscaped()));
     else
         m_ui->label->setText(tr("Are you sure you want to remove these %1 torrents from the transfer list?", "Are you sure you want to remove these 5 torrents from the transfer list?").arg(QString::number(torrentsCount)));
 
     // Icons
-    const QSize iconSize = Utils::Gui::largeIconSize();
-    m_ui->labelWarning->setPixmap(UIThemeManager::instance()->getIcon(u"dialog-warning"_s).pixmap(iconSize));
-    m_ui->labelWarning->setFixedWidth(iconSize.width());
+    m_ui->labelWarning->setPixmap(TorrenterIcons::icon(u"list-remove"_s, ThemeTokens::Token::StError
+            , ThemeTokens::currentMode()).pixmap(QSize(20, 20)));
     m_ui->rememberBtn->setIcon(UIThemeManager::instance()->getIcon(u"object-locked"_s));
     m_ui->rememberBtn->setIconSize(Utils::Gui::mediumIconSize());
     connect(m_ui->rememberBtn, &QCheckBox::clicked, this, [this]
@@ -62,15 +109,32 @@ DeletionConfirmationDialog::DeletionConfirmationDialog(QWidget *parent, const in
     });
 
     const bool removeTorrentContent = defaultDeleteFiles || Preferences::instance()->removeTorrentContent();
-    m_ui->checkRemoveContent->setChecked(removeTorrentContent);
-    connect(m_ui->checkRemoveContent, &QCheckBox::clicked, this, [this]
+    const auto applyDeleteState = [this]()
     {
-        const bool removeTorrentContent = m_ui->checkRemoveContent->isChecked();
-        m_ui->rememberBtn->setEnabled(removeTorrentContent != Preferences::instance()->removeTorrentContent());
-        m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(removeTorrentContent ? tr("Remove torrent and content") : tr("Remove torrent"));
-    });
-    m_ui->buttonBox->button(QDialogButtonBox::Ok)->setText(removeTorrentContent ? tr("Remove torrent and content") : tr("Remove torrent"));
-    m_ui->buttonBox->button(QDialogButtonBox::Cancel)->setFocus();
+        const bool del = m_ui->checkRemoveContent->isChecked();
+        auto *ok = m_ui->buttonBox->button(QDialogButtonBox::Ok);
+        ok->setText(del ? tr("Remove torrent and content") : tr("Remove torrent"));
+        ok->setProperty("variant", del ? QStringLiteral("danger") : QStringLiteral("primary"));
+        ok->style()->unpolish(ok);
+        ok->style()->polish(ok);
+        m_ui->rememberBtn->setEnabled(del != Preferences::instance()->removeTorrentContent());
+    };
+    connect(m_ui->checkRemoveContent, &QCheckBox::toggled, this, applyDeleteState);
+    m_ui->checkRemoveContent->setChecked(removeTorrentContent);
+    applyDeleteState();
+#ifdef TORRENTER_QA_HOOKS
+    // QA-only: deterministic destructive state for scripted screenshots.
+    if (qEnvironmentVariableIsSet("TORRENTER_QA_DELETE_FILES") && !removeTorrentContent)
+        m_ui->checkRemoveContent->setChecked(true);
+#endif
+    auto *okButton = m_ui->buttonBox->button(QDialogButtonBox::Ok);
+    auto *cancelButton = m_ui->buttonBox->button(QDialogButtonBox::Cancel);
+    okButton->setAutoDefault(false);
+    cancelButton->setAutoDefault(false);
+    cancelButton->setProperty("variant", QStringLiteral("ghost"));
+    cancelButton->style()->unpolish(cancelButton);
+    cancelButton->style()->polish(cancelButton);
+    cancelButton->setFocus();
 
     connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);

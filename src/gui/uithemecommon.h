@@ -37,6 +37,7 @@
 
 #include "base/global.h"
 #include "color.h"
+#include "themetokens.h"
 
 inline const QString CONFIG_FILE_NAME = u"config.json"_s;
 inline const QString STYLESHEET_FILE_NAME = u"stylesheet.qss"_s;
@@ -52,75 +53,26 @@ struct UIThemeColor
 
 inline QHash<QString, UIThemeColor> defaultUIThemeColors()
 {
-    return {
-        {u"Log.TimeStamp"_s, {Color::Primer::Light::fgSubtle, Color::Primer::Dark::fgSubtle}},
-        {u"Log.Normal"_s, {{}, {}}},
-        {u"Log.Info"_s, {Color::Primer::Light::accentFg, Color::Primer::Dark::accentFg}},
-        {u"Log.Warning"_s, {Color::Primer::Light::severeFg, Color::Primer::Dark::severeFg}},
-        {u"Log.Critical"_s, {Color::Primer::Light::dangerFg, Color::Primer::Dark::dangerFg}},
-        {u"Log.BannedPeer"_s, {Color::Primer::Light::dangerFg, Color::Primer::Dark::dangerFg}},
-
-        {u"RSS.ReadArticle"_s, {{}, {}}},
-        {u"RSS.UnreadArticle"_s, {{}, {}}},
-
-        {u"TransferList.Downloading"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.StalledDownloading"_s, {Color::Primer::Light::successEmphasis, Color::Primer::Dark::successEmphasis}},
-        {u"TransferList.DownloadingMetadata"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.ForcedDownloadingMetadata"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.ForcedDownloading"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.Uploading"_s, {Color::Primer::Light::accentFg, Color::Primer::Dark::accentFg}},
-        {u"TransferList.StalledUploading"_s, {Color::Primer::Light::accentEmphasis, Color::Primer::Dark::accentEmphasis}},
-        {u"TransferList.ForcedUploading"_s, {Color::Primer::Light::accentFg, Color::Primer::Dark::accentFg}},
-        {u"TransferList.QueuedDownloading"_s, {Color::Primer::Light::scaleYellow6, Color::Primer::Dark::scaleYellow6}},
-        {u"TransferList.QueuedUploading"_s, {Color::Primer::Light::scaleYellow6, Color::Primer::Dark::scaleYellow6}},
-        {u"TransferList.CheckingDownloading"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.CheckingUploading"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.CheckingResumeData"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.StoppedDownloading"_s, {Color::Primer::Light::fgMuted, Color::Primer::Dark::fgMuted}},
-        {u"TransferList.StoppedUploading"_s, {Color::Primer::Light::doneFg, Color::Primer::Dark::doneFg}},
-        {u"TransferList.Moving"_s, {Color::Primer::Light::successFg, Color::Primer::Dark::successFg}},
-        {u"TransferList.MissingFiles"_s, {Color::Primer::Light::dangerFg, Color::Primer::Dark::dangerFg}},
-        {u"TransferList.Error"_s, {Color::Primer::Light::dangerFg, Color::Primer::Dark::dangerFg}},
-
-        {u"PiecesBar.Border"_s, {{}, {}}},
-        {u"PiecesBar.Piece"_s, {{}, {}}},
-        {u"PiecesBar.PartialPiece"_s, {{}, {}}},
-        {u"PiecesBar.MissingPiece"_s, {{}, {}}},
-
-        {u"ProgressBar"_s, {{}, {}}}
-    };
+    QHash<QString, UIThemeColor> result;
+    result.reserve(30);
+    for (const QString &id : {u"Log.BannedPeer"_s, u"Log.Critical"_s, u"Log.Info"_s, u"Log.TimeStamp"_s, u"Log.Warning"_s, u"PiecesBar.Border"_s, u"PiecesBar.MissingPiece"_s, u"PiecesBar.PartialPiece"_s, u"PiecesBar.Piece"_s, u"ProgressBar"_s, u"RSS.ReadArticle"_s, u"RSS.UnreadArticle"_s, u"TransferList.CheckingDownloading"_s, u"TransferList.CheckingResumeData"_s, u"TransferList.CheckingUploading"_s, u"TransferList.Downloading"_s, u"TransferList.DownloadingMetadata"_s, u"TransferList.Error"_s, u"TransferList.ForcedDownloading"_s, u"TransferList.ForcedDownloadingMetadata"_s, u"TransferList.ForcedUploading"_s, u"TransferList.MissingFiles"_s, u"TransferList.Moving"_s, u"TransferList.QueuedDownloading"_s, u"TransferList.QueuedUploading"_s, u"TransferList.StalledDownloading"_s, u"TransferList.StalledUploading"_s, u"TransferList.StoppedDownloading"_s, u"TransferList.StoppedUploading"_s, u"TransferList.Uploading"_s})
+    {
+        result.insert(id, {ThemeTokens::colorById(id, ThemeTokens::Mode::Light)
+                           , ThemeTokens::colorById(id, ThemeTokens::Mode::Dark)});
+    }
+    return result;
 }
 
-// Palette isn't customizable in default theme
 inline QHash<QString, UIThemeColor> defaultPaletteColors()
 {
-    return {
-        {u"Palette.Window"_s, {{}, {}}},
-        {u"Palette.WindowText"_s, {{}, {}}},
-        {u"Palette.Base"_s, {{}, {}}},
-        {u"Palette.AlternateBase"_s, {{}, {}}},
-        {u"Palette.Text"_s, {{}, {}}},
-        {u"Palette.ToolTipBase"_s, {{}, {}}},
-        {u"Palette.ToolTipText"_s, {{}, {}}},
-        {u"Palette.BrightText"_s, {{}, {}}},
-        {u"Palette.Highlight"_s, {{}, {}}},
-        {u"Palette.HighlightedText"_s, {{}, {}}},
-        {u"Palette.Button"_s, {{}, {}}},
-        {u"Palette.ButtonText"_s, {{}, {}}},
-        {u"Palette.Link"_s, {{}, {}}},
-        {u"Palette.LinkVisited"_s, {{}, {}}},
-        {u"Palette.Light"_s, {{}, {}}},
-        {u"Palette.Midlight"_s, {{}, {}}},
-        {u"Palette.Mid"_s, {{}, {}}},
-        {u"Palette.Dark"_s, {{}, {}}},
-        {u"Palette.Shadow"_s, {{}, {}}},
-        {u"Palette.WindowTextDisabled"_s, {{}, {}}},
-        {u"Palette.TextDisabled"_s, {{}, {}}},
-        {u"Palette.ToolTipTextDisabled"_s, {{}, {}}},
-        {u"Palette.BrightTextDisabled"_s, {{}, {}}},
-        {u"Palette.HighlightedTextDisabled"_s, {{}, {}}},
-        {u"Palette.ButtonTextDisabled"_s, {{}, {}}}
-    };
+    QHash<QString, UIThemeColor> result;
+    result.reserve(25);
+    for (const QString &id : {u"Palette.AlternateBase"_s, u"Palette.Base"_s, u"Palette.BrightText"_s, u"Palette.BrightTextDisabled"_s, u"Palette.Button"_s, u"Palette.ButtonText"_s, u"Palette.ButtonTextDisabled"_s, u"Palette.Dark"_s, u"Palette.Highlight"_s, u"Palette.HighlightedText"_s, u"Palette.HighlightedTextDisabled"_s, u"Palette.Light"_s, u"Palette.Link"_s, u"Palette.LinkVisited"_s, u"Palette.Mid"_s, u"Palette.Midlight"_s, u"Palette.Shadow"_s, u"Palette.Text"_s, u"Palette.TextDisabled"_s, u"Palette.ToolTipBase"_s, u"Palette.ToolTipText"_s, u"Palette.ToolTipTextDisabled"_s, u"Palette.Window"_s, u"Palette.WindowText"_s, u"Palette.WindowTextDisabled"_s})
+    {
+        result.insert(id, {ThemeTokens::colorById(id, ThemeTokens::Mode::Light)
+                           , ThemeTokens::colorById(id, ThemeTokens::Mode::Dark)});
+    }
+    return result;
 }
 
 inline QSet<QString> defaultUIThemeIcons()
