@@ -491,8 +491,8 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
         updateSearchHint();
     });
 
-    // Trailing utilities: alt speed, Lock, Options.
-    m_ui->toolBar->addWidget(makeToolbarButton(m_ui->actionUseAlternativeSpeedLimits, u"torrenterToolButton"_s));
+    // Trailing utilities: Lock, Options. The alternative speed toggle lives
+    // only in the status bar; the action stays available in menus and tray.
     auto *lockContainer = new QWidget(this);
     auto *lockLayout = new QHBoxLayout(lockContainer);
     lockLayout->setContentsMargins(0, 0, 12, 0);
