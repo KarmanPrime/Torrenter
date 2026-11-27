@@ -373,5 +373,13 @@
         <file>minus-on-accent.svg</file>
         <file>grip-horizontal-line.svg</file>
         <file>chevrons-up-down.svg</file>
+        <file>spin-up-dark.svg</file>
+        <file>spin-down-dark.svg</file>
+        <file>spin-up-light.svg</file>
+        <file>spin-down-light.svg</file>
+        <file>spin-up-dark-disabled.svg</file>
+        <file>spin-down-dark-disabled.svg</file>
+        <file>spin-up-light-disabled.svg</file>
+        <file>spin-down-light-disabled.svg</file>
     </qresource>
 </RCC>

@@ -266,6 +266,8 @@ namespace ThemeTokens
                     : tokenColor.name(QColor::HexArgb);
             sheet.replace(QStringLiteral("${") % entry.name % QStringLiteral("}"), hex);
         }
+        sheet.replace(u"${spinArrow}"_s, (mode == Mode::Dark) ? u"-dark"_s : u"-light"_s);
+        sheet.replace(u"${spinArrowDisabled}"_s, (mode == Mode::Dark) ? u"-dark-disabled"_s : u"-light-disabled"_s);
         return sheet;
     }
 }

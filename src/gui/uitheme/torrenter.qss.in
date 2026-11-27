@@ -395,3 +395,53 @@ PropertiesWidget QPushButton#contentGhostButton:hover, PropertiesWidget QToolBut
   background: ${hover}; color: ${text1}; }
 PropertiesWidget QLabel#contentSelectedLabel { color: ${text3}; font-size: 12.5px; }
 PropertiesWidget QLabel#httpSourcesEmpty { color: ${text3}; font-size: 12.5px; }
+
+
+/* Spin boxes / time edits: theme-colored arrow subcontrols (no unstyled dark buttons). */
+QAbstractSpinBox, QDialog QAbstractSpinBox {
+  padding-right: 24px;
+}
+QAbstractSpinBox::up-button, QDialog QAbstractSpinBox::up-button,
+QAbstractSpinBox::down-button, QDialog QAbstractSpinBox::down-button {
+  subcontrol-origin: border;
+  width: 18px;
+  border: none;
+  border-left: 1px solid ${line};
+  background: ${raised};
+  margin: 1px 1px 1px 0;
+}
+QAbstractSpinBox::up-button, QDialog QAbstractSpinBox::up-button {
+  subcontrol-position: top right;
+  border-top-right-radius: 7px;
+}
+QAbstractSpinBox::down-button, QDialog QAbstractSpinBox::down-button {
+  subcontrol-position: bottom right;
+  border-bottom-right-radius: 7px;
+}
+QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover,
+QDialog QAbstractSpinBox::up-button:hover, QDialog QAbstractSpinBox::down-button:hover {
+  background: ${hover};
+}
+QAbstractSpinBox::up-button:pressed, QAbstractSpinBox::down-button:pressed,
+QDialog QAbstractSpinBox::up-button:pressed, QDialog QAbstractSpinBox::down-button:pressed {
+  background: ${pressed};
+}
+QAbstractSpinBox::up-arrow, QDialog QAbstractSpinBox::up-arrow {
+  image: url(:/icons/spin-up${spinArrow}.svg);
+  width: 10px; height: 10px;
+}
+QAbstractSpinBox::down-arrow, QDialog QAbstractSpinBox::down-arrow {
+  image: url(:/icons/spin-down${spinArrow}.svg);
+  width: 10px; height: 10px;
+}
+QAbstractSpinBox::up-button:disabled, QAbstractSpinBox::down-button:disabled,
+QDialog QAbstractSpinBox::up-button:disabled, QDialog QAbstractSpinBox::down-button:disabled {
+  background: ${raised};
+  border-left-color: ${lineSubtle};
+}
+QAbstractSpinBox::up-arrow:disabled, QDialog QAbstractSpinBox::up-arrow:disabled {
+  image: url(:/icons/spin-up${spinArrowDisabled}.svg);
+}
+QAbstractSpinBox::down-arrow:disabled, QDialog QAbstractSpinBox::down-arrow:disabled {
+  image: url(:/icons/spin-down${spinArrowDisabled}.svg);
+}
