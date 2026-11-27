@@ -85,6 +85,7 @@ inline QSet<QString> defaultUIThemeIcons()
         u"chart-line"_s,
         u"checked-completed"_s,
         u"configure"_s,
+        u"create-torrent"_s,
         u"connected"_s,
         u"dialog-warning"_s,
         u"directory"_s,

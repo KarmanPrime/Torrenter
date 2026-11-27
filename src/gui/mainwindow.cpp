@@ -291,7 +291,8 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     m_ui->toolBar->addSeparator();
     m_ui->actionDownloadFromURL->setIcon(UIThemeManager::instance()->getIcon(u"insert-link"_s));
     m_ui->actionSetGlobalSpeedLimits->setIcon(UIThemeManager::instance()->getIcon(u"speedometer"_s));
-    m_ui->actionCreateTorrent->setIcon(UIThemeManager::instance()->getIcon(u"torrent-creator"_s, u"document-edit"_s));
+    m_ui->actionCreateTorrent->setIcon(UIThemeManager::instance()->getIcon(u"create-torrent"_s, ThemeTokens::Token::Text2, u"document-edit"_s));
+    m_ui->actionCreateTorrent->setToolTip(tr("Create torrent..."));
     m_ui->actionAbout->setIcon(UIThemeManager::instance()->getIcon(u"help-about"_s));
     m_ui->actionStatistics->setIcon(UIThemeManager::instance()->getIcon(u"view-statistics"_s));
     m_ui->actionTopQueuePos->setIcon(UIThemeManager::instance()->getIcon(u"go-top"_s));
@@ -316,7 +317,6 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     m_ui->actionOpenDestinationFolder->setIcon(UIThemeManager::instance()->getIcon(u"directory"_s, u"folder"_s));
     addLinkAction->setIcon(m_ui->actionDownloadFromURL->icon());
     createTorrentAction->setIcon(m_ui->actionCreateTorrent->icon());
-    m_ui->actionUseAlternativeSpeedLimits->setIcon(UIThemeManager::instance()->getIcon(u"slow"_s));
 
     m_ui->actionPauseSession->setVisible(!BitTorrent::Session::instance()->isPaused());
     m_ui->actionResumeSession->setVisible(BitTorrent::Session::instance()->isPaused());
@@ -2245,6 +2245,8 @@ void MainWindow::populateDesktopIntegrationMenu()
 
 void MainWindow::updateAltSpeedsBtn(const bool alternative)
 {
+    const ThemeTokens::Token token = alternative ? ThemeTokens::Token::Accent : ThemeTokens::Token::Text2;
+    m_ui->actionUseAlternativeSpeedLimits->setIcon(UIThemeManager::instance()->getIcon(u"speedometer"_s, token, u"slow"_s));
     m_ui->actionUseAlternativeSpeedLimits->setChecked(alternative);
 }
 

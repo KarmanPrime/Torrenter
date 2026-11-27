@@ -345,7 +345,8 @@ void StatusBar::refresh()
 
 void StatusBar::updateAltSpeedsBtn(const bool alternative)
 {
-    m_altSpeedsBtn->setIcon(UIThemeManager::instance()->getIcon(alternative ? u"slow"_s : u"slow_off"_s));
+    m_altSpeedsBtn->setIcon(UIThemeManager::instance()->getIcon(u"speedometer"_s
+        , alternative ? ThemeTokens::Token::Accent : ThemeTokens::Token::Text2, u"slow"_s));
     m_altSpeedsBtn->setToolTip(alternative
         ? tr("Alternative speed limits: On")
         : tr("Alternative speed limits: Off"));
