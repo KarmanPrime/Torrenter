@@ -11,12 +11,24 @@
 
 #include "../themetokens.h"
 
+namespace
+{
+    // Painted switch geometry. The focus ring extends 2 px outside the track,
+    // so the track starts 3 px inside the widget to keep every edge visible.
+    constexpr int trackWidth = 30;
+    constexpr int trackHeight = 18;
+    constexpr int outerMargin = 3;
+    constexpr int labelGap = 8;
+    constexpr int labelX = outerMargin + trackWidth + labelGap;
+}
+
 ToggleSwitch::ToggleSwitch(QWidget *parent)
     : QCheckBox(parent)
 {
     setFocusPolicy(Qt::StrongFocus);
     setAttribute(Qt::WA_OpaquePaintEvent, false);
     setObjectName(QStringLiteral("toggleSwitch"));
+    setMinimumHeight(trackHeight + (2 * outerMargin));
     m_knobPosition = isChecked() ? 1 : 0;
 
     m_animation = new QPropertyAnimation(this, "knobPosition", this);
@@ -28,13 +40,13 @@ QSize ToggleSwitch::sizeHint() const
 {
     const QFontMetrics fm(font());
     const int textWidth = text().isEmpty() ? 0 : fm.horizontalAdvance(text());
-    const int height = qMax(22, fm.height() + 4);
-    return {38 + textWidth + 2, height};
+    const int height = qMax(trackHeight + (2 * outerMargin), fm.height() + 6);
+    return {labelX + textWidth + outerMargin, height};
 }
 
 QSize ToggleSwitch::minimumSizeHint() const
 {
-    return {30, 18};
+    return {trackWidth + (2 * outerMargin), trackHeight + (2 * outerMargin)};
 }
 
 bool ToggleSwitch::hitButton(const QPoint &pos) const
@@ -74,7 +86,7 @@ void ToggleSwitch::paintEvent(QPaintEvent *)
     if (!isEnabled())
         painter.setOpacity(0.4);
 
-    const QRectF track(0, qMax(0.0, (height() - 18) / 2.0), 30, 18);
+    const QRectF track(outerMargin, qMax(0.0, (height() - trackHeight) / 2.0), trackWidth, trackHeight);
     // Spec 6.2: Off = LineStrong #45474E / #C4C7CE, On = Accent #45E3B8 / #0E9A74.
     const QColor trackColor = isChecked()
             ? ((mode == ThemeTokens::Mode::Dark) ? QColor(QStringLiteral("#45E3B8")) : QColor(QStringLiteral("#0E9A74")))
@@ -101,7 +113,7 @@ void ToggleSwitch::paintEvent(QPaintEvent *)
     if (!text().isEmpty())
     {
         painter.setPen(ThemeTokens::color(ThemeTokens::Token::Text1, mode));
-        const QRectF labelRect(38, 0, width() - 38, height());
+        const QRectF labelRect(labelX, 0, qMax(0, width() - labelX), height());
         painter.drawText(labelRect, Qt::AlignLeft | Qt::AlignVCenter, text());
     }
 }
