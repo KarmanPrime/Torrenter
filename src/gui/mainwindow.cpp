@@ -42,7 +42,6 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
-#include <QCoreApplication>
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QComboBox>
@@ -270,31 +269,14 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     };
     syncAddLabel();
     connect(m_ui->actionOpen, &QAction::changed, addButton, syncAddLabel);
-    // TEMP-ADD-CAPTURE: remove after screenshot pass.
-    if (qEnvironmentVariableIsSet("TORRENTER_ADD_QA"))
-    {
-        const QString mode = QString::fromLatin1(qgetenv("TORRENTER_ADD_QA"));
-        QTimer::singleShot(2600, this, [addButton, mode]()
-        {
-            if (mode == u"main"_s || mode == u"menu"_s)
-            {
-                const QPointF pos = (mode == u"main"_s)
-                    ? QPointF(30, 15) : QPointF(addButton->width() - 12, 15);
-                QHoverEvent hover(QEvent::HoverMove, pos, QPointF());
-                QCoreApplication::sendEvent(addButton, &hover);
-            }
-            else if (mode == u"open"_s)
-            {
-                addButton->showMenu();
-            }
-        });
-    }
     addButton->installEventFilter(this);
     addButton->setStyleSheet(
         QStringLiteral("QToolButton#torrenterAddButton { background: %1; color: %2; border: none; border-radius: 8px;"
             " min-height: 30px; padding: 0 36px 0 12px; font-weight: 600; }"
             " QToolButton#torrenterAddButton[zoneHover=\"main\"] { background: %3; }"
+            " QToolButton#torrenterAddButton[zoneHover=\"main\"]::menu-button { background: %1; }"
             " QToolButton#torrenterAddButton[zonePressed=\"main\"] { background: %4; }"
+            " QToolButton#torrenterAddButton[zonePressed=\"main\"]::menu-button { background: %1; }"
             " QToolButton#torrenterAddButton:pressed { background: %4; }"
             " QToolButton#torrenterAddButton::menu-button { width: 24px; border-left: 1px solid rgba(12,13,15,0.25);"
             " border-top-right-radius: 8px; border-bottom-right-radius: 8px; background: transparent; }"
@@ -913,7 +895,9 @@ void MainWindow::refreshToolbarStyles()
             QStringLiteral("QToolButton#torrenterAddButton { background: %1; color: %2; border: none; border-radius: 8px;"
                 " min-height: 30px; padding: 0 36px 0 12px; font-weight: 600; }"
                 " QToolButton#torrenterAddButton[zoneHover=\"main\"] { background: %3; }"
+            " QToolButton#torrenterAddButton[zoneHover=\"main\"]::menu-button { background: %1; }"
             " QToolButton#torrenterAddButton[zonePressed=\"main\"] { background: %4; }"
+                " QToolButton#torrenterAddButton[zonePressed=\"main\"]::menu-button { background: %1; }"
                 " QToolButton#torrenterAddButton:pressed { background: %4; }"
                 " QToolButton#torrenterAddButton::menu-button { width: 24px; border-left: 1px solid rgba(12,13,15,0.25);"
                 " border-top-right-radius: 8px; border-bottom-right-radius: 8px; background: transparent; }"
@@ -1507,7 +1491,7 @@ void MainWindow::notifyOfUpdate(const QString &)
 {
     // Show restart message
     m_statusBar->showRestartRequired();
-    LogMsg(tr("qBittorrent was just updated and needs to be restarted for the changes to be effective.")
+    LogMsg(tr("Torrenter was just updated and needs to be restarted for the changes to be effective.")
                                    , Log::CRITICAL);
     // Delete the executable watcher
     delete m_executableWatcher;
@@ -1591,7 +1575,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         {
             QPointF pos;
             if (auto *he = dynamic_cast<QHoverEvent *>(event))
-                pos = he->pos();
+                pos = he->position();
             else if (auto *me = dynamic_cast<QMouseEvent *>(event))
                 pos = me->pos();
             applyZone("zoneHover", (pos.x() < (button->width() - 24)) ? u"main"_s : u"menu"_s);
