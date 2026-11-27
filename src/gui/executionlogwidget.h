@@ -37,6 +37,9 @@ namespace Ui
     class ExecutionLogWidget;
 }
 
+class QAction;
+class QMenu;
+
 class BaseLogModel;
 class LogFilterModel;
 class LogListView;
@@ -52,9 +55,15 @@ public:
 
     void setMessageTypes(Log::MsgTypes types);
 
+signals:
+    void messageTypesChanged(Log::MsgTypes types) const;
+
 private:
     void displayContextMenu(const LogListView *view, const BaseLogModel *model) const;
 
     Ui::ExecutionLogWidget *m_ui = nullptr;
     LogFilterModel *m_messageFilterModel = nullptr;
+    QMenu *m_filterMenu = nullptr;
+    QList<QAction *> m_filterActions;
+    Log::MsgTypes m_messageTypes = Log::ALL;
 };

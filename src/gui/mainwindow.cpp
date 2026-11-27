@@ -71,10 +71,12 @@
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/sessionstatus.h"
 #include "base/global.h"
+#include "base/logger.h"
 #include "base/net/downloadmanager.h"
 #include "base/path.h"
 #include "base/plugins/pluginsengine.h"
 #include "base/preferences.h"
+#include "base/settingsstorage.h"
 #include "base/rss/rss_folder.h"
 #include "base/rss/rss_session.h"
 #include "base/utils/foreignapps.h"
@@ -813,6 +815,14 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     m_moreMenu->addSeparator();
     m_moreMenu->addAction(m_ui->actionCloseWindow);
     m_moreMenu->addAction(m_ui->actionExit);
+
+    // Keep commands reachable from the tray when the toolbar is hidden.
+    if (QMenu *trayMenu = app->desktopIntegration()->menu())
+    {
+        trayMenu->addSeparator();
+        for (QAction *action : m_moreMenu->actions())
+            trayMenu->addAction(action);
+    }
 #ifndef Q_OS_MACOS
     m_ui->actionLock->setVisible(app->desktopIntegration()->isActive());
     connect(app->desktopIntegration(), &DesktopIntegration::stateChanged, this, [this, app]()
@@ -2162,6 +2172,41 @@ void MainWindow::loadPreferences()
 
     showStatusBar(pref->isStatusbarDisplayed());
 
+    // Apply the settings moved out of the menu bar without a restart.
+    const bool showFilters = pref->isFiltersSidebarVisible();
+    m_ui->actionShowFiltersSidebar->setChecked(showFilters);
+    showFiltersSidebar(showFilters);
+
+    m_displaySpeedInTitle = pref->speedInTitleBar();
+    m_ui->actionSpeedInTitleBar->setChecked(m_displaySpeedInTitle);
+    refreshWindowTitle();
+
+    m_ui->actionRSSReader->setChecked(pref->isRSSWidgetEnabled());
+    displayRSSTab(m_ui->actionRSSReader->isChecked());
+
+    m_ui->actionSearchWidget->setChecked(pref->isSearchEnabled());
+    if (m_ui->actionSearchWidget->isChecked())
+        QMetaObject::invokeMethod(this, &MainWindow::on_actionSearchWidget_triggered, Qt::QueuedConnection);
+
+    const bool showExecutionLog = SettingsStorage::instance()->loadValue(u"GUI/Log/Enabled"_s, false);
+    m_storeExecutionLogEnabled = showExecutionLog;
+    m_ui->actionExecutionLogs->setChecked(showExecutionLog);
+    if (showExecutionLog != (m_executionLog != nullptr))
+        on_actionExecutionLogs_triggered(showExecutionLog);
+
+    const auto logTypes = static_cast<Log::MsgTypes>(SettingsStorage::instance()->loadValue(u"GUI/Log/Types"_s, static_cast<int>(Log::ALL)));
+    m_storeExecutionLogTypes = logTypes;
+    m_ui->actionNormalMessages->setChecked(logTypes.testFlag(Log::NORMAL));
+    m_ui->actionInformationMessages->setChecked(logTypes.testFlag(Log::INFO));
+    m_ui->actionWarningMessages->setChecked(logTypes.testFlag(Log::WARNING));
+    m_ui->actionCriticalMessages->setChecked(logTypes.testFlag(Log::CRITICAL));
+    if (m_executionLog != nullptr)
+        m_executionLog->setMessageTypes(logTypes);
+
+    const auto toolbarStyle = static_cast<Qt::ToolButtonStyle>(pref->getToolbarTextPosition());
+    if ((toolbarStyle >= Qt::ToolButtonIconOnly) && (toolbarStyle <= Qt::ToolButtonFollowStyle))
+        m_ui->toolBar->setToolButtonStyle(toolbarStyle);
+
     m_transferListWidget->setAlternatingRowColors(pref->useAlternatingRowColors());
     m_propertiesWidget->getFilesList()->setAlternatingRowColors(pref->useAlternatingRowColors());
     m_propertiesWidget->getTrackerList()->setAlternatingRowColors(pref->useAlternatingRowColors());
@@ -2505,10 +2550,10 @@ void MainWindow::minimizeWindow()
 
 void MainWindow::on_actionExecutionLogs_triggered(bool checked)
 {
-    if (checked)
+    if (checked && (m_executionLog == nullptr))
     {
-        Q_ASSERT(!m_executionLog);
         m_executionLog = new ExecutionLogWidget(executionLogMsgTypes(), m_tabs);
+        connect(m_executionLog, &ExecutionLogWidget::messageTypesChanged, this, &MainWindow::setExecutionLogMsgTypes);
 #ifdef Q_OS_MACOS
         m_tabs->addTab(m_executionLog, tr("Execution Log"));
 #else
@@ -2516,9 +2561,10 @@ void MainWindow::on_actionExecutionLogs_triggered(bool checked)
         m_tabs->setTabIcon(indexTab, UIThemeManager::instance()->getIcon(u"help-contents"_s));
 #endif
     }
-    else
+    else if (!checked && (m_executionLog != nullptr))
     {
         delete m_executionLog;
+        m_executionLog = nullptr;
     }
 
     m_ui->actionNormalMessages->setEnabled(checked);

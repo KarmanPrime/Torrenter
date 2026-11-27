@@ -73,6 +73,7 @@
 #include "base/net/portforwarder.h"
 #include "base/net/proxyconfigurationmanager.h"
 #include "base/net/smtpclient.h"
+#include "base/logger.h"
 #include "base/path.h"
 #include "base/preferences.h"
 #include "base/profile.h"
@@ -482,6 +483,11 @@ void OptionsDialog::loadBehaviorTabOptions()
     m_ui->checkShowRSSTab->setChecked(pref->isRSSWidgetEnabled());
     m_ui->checkShowSearchTab->setChecked(pref->isSearchEnabled());
     m_ui->checkShowExecutionLogTab->setChecked(SettingsStorage::instance()->loadValue(u"GUI/Log/Enabled"_s, false));
+    const int logTypes = SettingsStorage::instance()->loadValue(u"GUI/Log/Types"_s, static_cast<int>(Log::ALL));
+    m_ui->checkLogNormal->setChecked(logTypes & Log::NORMAL);
+    m_ui->checkLogInformation->setChecked(logTypes & Log::INFO);
+    m_ui->checkLogWarning->setChecked(logTypes & Log::WARNING);
+    m_ui->checkLogCritical->setChecked(logTypes & Log::CRITICAL);
 
     const int toolbarStyles[] = {Qt::ToolButtonIconOnly, Qt::ToolButtonTextOnly,
                                  Qt::ToolButtonTextBesideIcon, Qt::ToolButtonTextUnderIcon,
@@ -641,7 +647,6 @@ void OptionsDialog::loadBehaviorTabOptions()
     connect(m_ui->comboColorScheme, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
 #endif
 
-#if (defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
     connect(m_ui->checkShowTopToolbar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkShowStatusBar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkShowFiltersSidebar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
@@ -649,8 +654,13 @@ void OptionsDialog::loadBehaviorTabOptions()
     connect(m_ui->checkShowRSSTab, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkShowSearchTab, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkShowExecutionLogTab, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkLogNormal, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkLogInformation, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkLogWarning, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkLogCritical, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->comboToolbarText, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->comboAutoShutdown, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
+#if (defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
     connect(m_ui->checkUseSystemIcon, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
 #endif
     connect(m_ui->checkUseCustomTheme, &QGroupBox::toggled, this, &ThisType::enableApplyButton);
@@ -753,6 +763,16 @@ void OptionsDialog::saveBehaviorTabOptions() const
     pref->setRSSWidgetVisible(m_ui->checkShowRSSTab->isChecked());
     pref->setSearchEnabled(m_ui->checkShowSearchTab->isChecked());
     SettingsStorage::instance()->storeValue(u"GUI/Log/Enabled"_s, m_ui->checkShowExecutionLogTab->isChecked());
+    int logTypes = 0;
+    if (m_ui->checkLogNormal->isChecked())
+        logTypes |= Log::NORMAL;
+    if (m_ui->checkLogInformation->isChecked())
+        logTypes |= Log::INFO;
+    if (m_ui->checkLogWarning->isChecked())
+        logTypes |= Log::WARNING;
+    if (m_ui->checkLogCritical->isChecked())
+        logTypes |= Log::CRITICAL;
+    SettingsStorage::instance()->storeValue(u"GUI/Log/Types"_s, logTypes);
 
     const int toolbarStyles[] = {Qt::ToolButtonIconOnly, Qt::ToolButtonTextOnly,
                                  Qt::ToolButtonTextBesideIcon, Qt::ToolButtonTextUnderIcon,

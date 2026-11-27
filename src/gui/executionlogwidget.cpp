@@ -28,9 +28,11 @@
 
 #include "executionlogwidget.h"
 
+#include <QAction>
 #include <QDateTime>
 #include <QMenu>
 #include <QPalette>
+#include <QSignalBlocker>
 
 #include "base/global.h"
 #include "log/logfiltermodel.h"
@@ -43,8 +45,36 @@ ExecutionLogWidget::ExecutionLogWidget(const Log::MsgTypes types, QWidget *paren
     : QWidget(parent)
     , m_ui(new Ui::ExecutionLogWidget)
     , m_messageFilterModel(new LogFilterModel(types, this))
+    , m_messageTypes(types)
 {
     m_ui->setupUi(this);
+
+    m_filterMenu = new QMenu(m_ui->buttonLogFilters);
+    const QList<QPair<QString, Log::MsgType>> filters {
+        {tr("Normal"), Log::NORMAL}, {tr("Information"), Log::INFO},
+        {tr("Warning"), Log::WARNING}, {tr("Critical"), Log::CRITICAL}
+    };
+    for (const auto &filter : filters)
+    {
+        auto *action = m_filterMenu->addAction(filter.first);
+        action->setCheckable(true);
+        action->setChecked(types & filter.second);
+        action->setProperty("logType", static_cast<int>(filter.second));
+        m_filterActions.append(action);
+        connect(action, &QAction::toggled, this, [this]()
+        {
+            Log::MsgTypes flags;
+            for (QAction *filterAction : m_filterActions)
+            {
+                if (filterAction->isChecked())
+                    flags |= static_cast<Log::MsgType>(filterAction->property("logType").toInt());
+            }
+            m_messageTypes = flags;
+            m_messageFilterModel->setMessageTypes(flags);
+            emit messageTypesChanged(flags);
+        });
+    }
+    m_ui->buttonLogFilters->setMenu(m_filterMenu);
 
     LogMessageModel *messageModel = new LogMessageModel(this);
     m_messageFilterModel->setSourceModel(messageModel);
@@ -81,7 +111,14 @@ ExecutionLogWidget::~ExecutionLogWidget()
 
 void ExecutionLogWidget::setMessageTypes(const Log::MsgTypes types)
 {
+    m_messageTypes = types;
     m_messageFilterModel->setMessageTypes(types);
+    for (QAction *action : m_filterActions)
+    {
+        const int flag = action->property("logType").toInt();
+        const QSignalBlocker blocker(action);
+        action->setChecked(types & static_cast<Log::MsgType>(flag));
+    }
 }
 
 void ExecutionLogWidget::displayContextMenu(const LogListView *view, const BaseLogModel *model) const
