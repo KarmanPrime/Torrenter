@@ -203,6 +203,21 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
 {
     m_ui->setupUi(this);
 
+#ifndef Q_OS_MACOS
+    // The classic menu bar is gone on Windows/Linux. Keep every action alive
+    // (and its shortcut active) by attaching it directly to the window.
+    menuBar()->hide();
+#endif
+    for (QMenu *menu : m_ui->menubar->findChildren<QMenu *>())
+    {
+        for (QAction *action : menu->actions())
+        {
+            if ((action == nullptr) || action->isSeparator() || (action->menu() != nullptr))
+                continue;
+            if (!actions().contains(action))
+                addAction(action);
+        }
+    }
     Preferences *const pref = Preferences::instance();
     m_uiLocked = pref->isUILocked();
     m_displaySpeedInTitle = pref->speedInTitleBar();
@@ -511,6 +526,17 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     });
     m_ui->toolBar->addAction(m_ui->actionOptions);
 
+    m_moreMenu = new QMenu(this);
+    m_moreButton = new QToolButton(this);
+    m_moreButton->setObjectName(u"torrenterMoreButton"_s);
+    m_moreButton->setIcon(UIThemeManager::instance()->getIcon(u"more-horizontal"_s));
+    m_moreButton->setToolTip(tr("More actions"));
+    m_moreButton->setPopupMode(QToolButton::InstantPopup);
+    m_moreButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    m_moreButton->setFixedSize(32, 32);
+    m_moreButton->setMenu(m_moreMenu);
+    m_moreAction = m_ui->toolBar->addWidget(m_moreButton);
+
     m_ui->toolBar->setIconSize(QSize(18, 18));
     m_tabs->setObjectName(u"torrenterPropertiesTabs"_s);
 
@@ -759,6 +785,34 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
     loadSettings();
 
     populateDesktopIntegrationMenu();
+
+    // Commands from the removed menu bar live in the toolbar's ... menu.
+    m_moreMenu->clear();
+    m_moreMenu->addAction(m_ui->actionOpen);
+    m_moreMenu->addAction(m_ui->actionDownloadFromURL);
+    m_moreMenu->addAction(m_ui->actionCreateTorrent);
+    m_moreMenu->addSeparator();
+    m_moreMenu->addAction(m_ui->actionStart);
+    m_moreMenu->addAction(m_ui->actionStop);
+    m_moreMenu->addAction(m_ui->actionPauseSession);
+    m_moreMenu->addAction(m_ui->actionResumeSession);
+    m_moreMenu->addAction(m_ui->actionDelete);
+    m_moreMenu->addSeparator();
+    m_moreMenu->addAction(m_ui->actionStatistics);
+    m_moreMenu->addAction(m_ui->actionExecutionLogs);
+    m_moreMenu->addAction(m_ui->actionLock);
+    m_moreMenu->addSeparator();
+    m_moreMenu->addAction(m_ui->actionManageCookies);
+    m_moreMenu->addAction(m_ui->actionManagePlugins);
+    m_moreMenu->addAction(m_ui->actionOptions);
+    m_moreMenu->addSeparator();
+    m_moreMenu->addAction(m_ui->actionDocumentation);
+    m_moreMenu->addAction(m_ui->actionCheckForUpdates);
+    m_moreMenu->addAction(m_ui->actionDonateMoney);
+    m_moreMenu->addAction(m_ui->actionAbout);
+    m_moreMenu->addSeparator();
+    m_moreMenu->addAction(m_ui->actionCloseWindow);
+    m_moreMenu->addAction(m_ui->actionExit);
 #ifndef Q_OS_MACOS
     m_ui->actionLock->setVisible(app->desktopIntegration()->isActive());
     connect(app->desktopIntegration(), &DesktopIntegration::stateChanged, this, [this, app]()
@@ -1366,7 +1420,7 @@ void MainWindow::createKeyboardShortcuts()
     connect(switchSearchFilterShortcutAlternative, &QShortcut::activated, this, &MainWindow::toggleFocusBetweenLineEdits);
 
     m_ui->actionDocumentation->setShortcut(QKeySequence::HelpContents);
-    m_ui->actionOptions->setShortcut(Qt::ALT | Qt::Key_O);
+    m_ui->actionOptions->setShortcut({Qt::ALT | Qt::Key_O, Qt::CTRL | Qt::Key_Comma});
     m_ui->actionStatistics->setShortcut(Qt::CTRL | Qt::Key_I);
     m_ui->actionStart->setShortcut(Qt::CTRL | Qt::Key_S);
     m_ui->actionStop->setShortcut(Qt::CTRL | Qt::Key_P);
@@ -1683,7 +1737,8 @@ void MainWindow::setCompactMode(bool enabled)
         m_compactOverflow->menu()->clear();
         for (QAction *action : m_ui->toolBar->actions())
         {
-            if ((action == m_compactDrawerToggleAction) || (action == m_compactOverflowAction))
+            if ((action == m_compactDrawerToggleAction) || (action == m_compactOverflowAction)
+                || (action == m_moreAction))
                 continue;
             if (!action->isVisible())
                 continue;

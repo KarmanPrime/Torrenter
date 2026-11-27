@@ -269,6 +269,9 @@ private:
     QWidget *m_compactDrawer = nullptr;
     QToolButton *m_compactDrawerToggle = nullptr;
     QToolButton *m_compactOverflow = nullptr;
+    QToolButton *m_moreButton = nullptr;
+    QMenu *m_moreMenu = nullptr;
+    QAction *m_moreAction = nullptr;
     QAction *m_compactDrawerToggleAction = nullptr;
     QAction *m_compactOverflowAction = nullptr;
     QList<QToolButton *> m_compactChips;

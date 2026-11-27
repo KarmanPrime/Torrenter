@@ -246,6 +246,96 @@
                 </widget>
                </item>
                <item>
+                <widget class="ToggleSwitch" name="checkShowTopToolbar">
+                 <property name="text">
+                  <string>Show top toolbar</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ToggleSwitch" name="checkShowStatusBar">
+                 <property name="text">
+                  <string>Show status bar</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ToggleSwitch" name="checkShowFiltersSidebar">
+                 <property name="text">
+                  <string>Show filters sidebar</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ToggleSwitch" name="checkSpeedInTitleBar">
+                 <property name="text">
+                  <string>Show speed in title bar</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ToggleSwitch" name="checkShowRSSTab">
+                 <property name="text">
+                  <string>Show RSS tab</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ToggleSwitch" name="checkShowSearchTab">
+                 <property name="text">
+                  <string>Show Search tab</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="ToggleSwitch" name="checkShowExecutionLogTab">
+                 <property name="text">
+                  <string>Show execution log tab</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="layoutToolbarText">
+                 <item>
+                  <widget class="QLabel" name="labelToolbarText">
+                   <property name="text">
+                    <string>Toolbar text:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="comboToolbarText">
+                   <item><property name="text"><string>Icons only</string></property></item>
+                   <item><property name="text"><string>Text only</string></property></item>
+                   <item><property name="text"><string>Text alongside icons</string></property></item>
+                   <item><property name="text"><string>Text under icons</string></property></item>
+                   <item><property name="text"><string>Follow system style</string></property></item>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="layoutAutoShutdown">
+                 <item>
+                  <widget class="QLabel" name="labelAutoShutdown">
+                   <property name="text">
+                    <string>On downloads done:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="comboAutoShutdown">
+                   <item><property name="text"><string>Do nothing</string></property></item>
+                   <item><property name="text"><string>Exit Torrenter</string></property></item>
+                   <item><property name="text"><string>Suspend system</string></property></item>
+                   <item><property name="text"><string>Hibernate system</string></property></item>
+                   <item><property name="text"><string>Shut down system</string></property></item>
+                   <item><property name="text"><string>Reboot system</string></property></item>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
                 <widget class="ToggleSwitch" name="checkUseSystemIcon">
                  <property name="text">
                   <string>Use icons from system theme</string>

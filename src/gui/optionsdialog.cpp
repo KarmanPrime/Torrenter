@@ -78,6 +78,7 @@
 #include "base/profile.h"
 #include "base/rss/rss_autodownloader.h"
 #include "base/rss/rss_session.h"
+#include "base/settingsstorage.h"
 #include "base/torrentfileguard.h"
 #include "base/torrentfileswatcher.h"
 #include "base/utils/apikey.h"
@@ -474,6 +475,41 @@ void OptionsDialog::loadBehaviorTabOptions()
     initializeStyleCombo();
     initializeColorSchemeOptions();
 
+    m_ui->checkShowTopToolbar->setChecked(pref->isToolbarDisplayed());
+    m_ui->checkShowStatusBar->setChecked(pref->isStatusbarDisplayed());
+    m_ui->checkShowFiltersSidebar->setChecked(pref->isFiltersSidebarVisible());
+    m_ui->checkSpeedInTitleBar->setChecked(pref->speedInTitleBar());
+    m_ui->checkShowRSSTab->setChecked(pref->isRSSWidgetEnabled());
+    m_ui->checkShowSearchTab->setChecked(pref->isSearchEnabled());
+    m_ui->checkShowExecutionLogTab->setChecked(SettingsStorage::instance()->loadValue(u"GUI/Log/Enabled"_s, false));
+
+    const int toolbarStyles[] = {Qt::ToolButtonIconOnly, Qt::ToolButtonTextOnly,
+                                 Qt::ToolButtonTextBesideIcon, Qt::ToolButtonTextUnderIcon,
+                                 Qt::ToolButtonFollowStyle};
+    int toolbarStyleIndex = 0;
+    for (int i = 0; i < 5; ++i)
+    {
+        if (toolbarStyles[i] == pref->getToolbarTextPosition())
+        {
+            toolbarStyleIndex = i;
+            break;
+        }
+    }
+    m_ui->comboToolbarText->setCurrentIndex(toolbarStyleIndex);
+
+    int autoShutdownIndex = 0;
+    if (pref->shutdownqBTWhenDownloadsComplete())
+        autoShutdownIndex = 1;
+    else if (pref->suspendWhenDownloadsComplete())
+        autoShutdownIndex = 2;
+    else if (pref->hibernateWhenDownloadsComplete())
+        autoShutdownIndex = 3;
+    else if (pref->shutdownWhenDownloadsComplete())
+        autoShutdownIndex = 4;
+    else if (pref->rebootWhenDownloadsComplete())
+        autoShutdownIndex = 5;
+    m_ui->comboAutoShutdown->setCurrentIndex(autoShutdownIndex);
+
     m_ui->checkUseCustomTheme->setChecked(Preferences::instance()->useCustomUITheme());
     m_ui->customThemeFilePath->setSelectedPath(Preferences::instance()->customUIThemePath());
     m_ui->customThemeFilePath->setMode(FileSystemPathEdit::Mode::FileOpen);
@@ -606,6 +642,15 @@ void OptionsDialog::loadBehaviorTabOptions()
 #endif
 
 #if (defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
+    connect(m_ui->checkShowTopToolbar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkShowStatusBar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkShowFiltersSidebar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkSpeedInTitleBar, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkShowRSSTab, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkShowSearchTab, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkShowExecutionLogTab, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->comboToolbarText, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
+    connect(m_ui->comboAutoShutdown, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->checkUseSystemIcon, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
 #endif
     connect(m_ui->checkUseCustomTheme, &QGroupBox::toggled, this, &ThisType::enableApplyButton);
@@ -700,6 +745,27 @@ void OptionsDialog::saveBehaviorTabOptions() const
     }
 
     pref->setStyle(m_ui->comboStyle->currentData().toString());
+
+    pref->setToolbarDisplayed(m_ui->checkShowTopToolbar->isChecked());
+    pref->setStatusbarDisplayed(m_ui->checkShowStatusBar->isChecked());
+    pref->setFiltersSidebarVisible(m_ui->checkShowFiltersSidebar->isChecked());
+    pref->showSpeedInTitleBar(m_ui->checkSpeedInTitleBar->isChecked());
+    pref->setRSSWidgetVisible(m_ui->checkShowRSSTab->isChecked());
+    pref->setSearchEnabled(m_ui->checkShowSearchTab->isChecked());
+    SettingsStorage::instance()->storeValue(u"GUI/Log/Enabled"_s, m_ui->checkShowExecutionLogTab->isChecked());
+
+    const int toolbarStyles[] = {Qt::ToolButtonIconOnly, Qt::ToolButtonTextOnly,
+                                 Qt::ToolButtonTextBesideIcon, Qt::ToolButtonTextUnderIcon,
+                                 Qt::ToolButtonFollowStyle};
+    const int toolbarIndex = qBound(0, m_ui->comboToolbarText->currentIndex(), 4);
+    pref->setToolbarTextPosition(toolbarStyles[toolbarIndex]);
+
+    const int autoIndex = m_ui->comboAutoShutdown->currentIndex();
+    pref->setShutdownqBTWhenDownloadsComplete(autoIndex == 1);
+    pref->setSuspendWhenDownloadsComplete(autoIndex == 2);
+    pref->setHibernateWhenDownloadsComplete(autoIndex == 3);
+    pref->setShutdownWhenDownloadsComplete(autoIndex == 4);
+    pref->setRebootWhenDownloadsComplete(autoIndex == 5);
 
 #ifdef QBT_HAS_COLORSCHEME_OPTION
     UIThemeManager::instance()->setColorScheme(m_ui->comboColorScheme->currentData().value<ColorScheme>());
