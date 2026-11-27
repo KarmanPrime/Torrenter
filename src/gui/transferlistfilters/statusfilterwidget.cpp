@@ -73,12 +73,18 @@ StatusFilterWidget::StatusFilterWidget(QWidget *parent, TransferListWidget *tran
     auto *stalled = new QListWidgetItem(this);
     stalled->setData(Qt::DisplayRole, tr("Stalled (0)"));
     stalled->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"filter-stalled"_s, u"filterstalled"_s));
+    // Keep the enum-indexed rows so saved filters and the WebUI keep working,
+    // but never show these two sub-items in the sidebar.
     auto *stalledUploading = new QListWidgetItem(this);
     stalledUploading->setData(Qt::DisplayRole, tr("Stalled Uploading (0)"));
     stalledUploading->setData(Qt::UserRole, true);  // indented child of Stalled (no icon)
+    stalledUploading->setFlags(stalledUploading->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
+    stalledUploading->setHidden(true);
     auto *stalledDownloading = new QListWidgetItem(this);
     stalledDownloading->setData(Qt::DisplayRole, tr("Stalled Downloading (0)"));
     stalledDownloading->setData(Qt::UserRole, true);  // indented child of Stalled (no icon)
+    stalledDownloading->setFlags(stalledDownloading->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
+    stalledDownloading->setHidden(true);
     auto *checking = new QListWidgetItem(this);
     checking->setData(Qt::DisplayRole, tr("Checking (0)"));
     checking->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"force-recheck"_s, u"checking"_s));
@@ -97,8 +103,11 @@ StatusFilterWidget::StatusFilterWidget(QWidget *parent, TransferListWidget *tran
     const Preferences *const pref = Preferences::instance();
     connect(pref, &Preferences::changed, this, &StatusFilterWidget::configure);
 
-    const int storedRow = pref->getTransSelFilter();
-    if (item(((storedRow >= 0) && (storedRow < count())) ? storedRow : 0)->isHidden())
+    int storedRow = pref->getTransSelFilter();
+    // Removed sidebar rows can still be present in saved settings.
+    if ((storedRow == TorrentFilter::StalledUploading) || (storedRow == TorrentFilter::StalledDownloading))
+        storedRow = item(TorrentFilter::Stalled)->isHidden() ? TorrentFilter::All : TorrentFilter::Stalled;
+    if ((storedRow < 0) || (storedRow >= count()) || item(storedRow)->isHidden())
         setCurrentRow(TorrentFilter::All, QItemSelectionModel::SelectCurrent);
     else
         setCurrentRow(storedRow, QItemSelectionModel::SelectCurrent);
@@ -195,8 +204,8 @@ void StatusFilterWidget::hideZeroItems()
     item(TorrentFilter::Active)->setHidden(m_nbActive == 0);
     item(TorrentFilter::Inactive)->setHidden(m_nbInactive == 0);
     item(TorrentFilter::Stalled)->setHidden(m_nbStalled == 0);
-    item(TorrentFilter::StalledUploading)->setHidden(m_nbStalledUploading == 0);
-    item(TorrentFilter::StalledDownloading)->setHidden(m_nbStalledDownloading == 0);
+    item(TorrentFilter::StalledUploading)->setHidden(true);
+    item(TorrentFilter::StalledDownloading)->setHidden(true);
     item(TorrentFilter::Checking)->setHidden(m_nbChecking == 0);
     item(TorrentFilter::Moving)->setHidden(m_nbMoving == 0);
     item(TorrentFilter::Errored)->setHidden(m_nbErrored == 0);
@@ -295,7 +304,11 @@ void StatusFilterWidget::configure()
     else
     {
         for (int i = 0; i < count(); ++i)
+        {
+            if ((i == TorrentFilter::StalledUploading) || (i == TorrentFilter::StalledDownloading))
+                continue;
             item(i)->setHidden(false);
+        }
     }
 
     updateGeometry();
