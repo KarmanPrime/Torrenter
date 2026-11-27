@@ -20,6 +20,7 @@
 #include <QLayoutItem>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSizePolicy>
 #include <QSpacerItem>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -30,8 +31,6 @@
 
 namespace
 {
-    constexpr int cardRowHeight = 52;
-
     int widgetDepth(const QWidget *widget, const QWidget *stopAt)
     {
         int depth = 0;
@@ -40,14 +39,24 @@ namespace
         return depth;
     }
 
-    // Give plain vertical group-box contents real rows: >= 52 px tall, 16 px
-    // side padding, hairline separators, label left / control right preserved.
-    // Add card row padding and hairlines WITHOUT moving any Designer widget
-    // out of its layout (moving layouts corrupts their widget ownership).
+    // Cards use real layouts and grow to fit their contents. Never impose a
+    // fixed/minimum row height: nested groups and multi-line fields need more
+    // than a single row and would otherwise paint over each other.
+    void relaxWidget(QWidget *w)
+    {
+        if (w == nullptr)
+            return;
+        QSizePolicy policy = w->sizePolicy();
+        policy.setVerticalPolicy(qobject_cast<QGroupBox *>(w) ? QSizePolicy::Preferred
+                                                             : QSizePolicy::Minimum);
+        w->setSizePolicy(policy);
+        w->setMaximumHeight(QWIDGETSIZE_MAX);
+    }
+
     void buildRows(QVBoxLayout *vbox, bool isCard)
     {
         vbox->setContentsMargins(16, 10, 16, 10);
-        vbox->setSpacing(0);
+        vbox->setSpacing(8);
         if (!isCard)
             return;
 
@@ -64,18 +73,16 @@ namespace
                 if (QGridLayout *grid = qobject_cast<QGridLayout *>(child))
                 {
                     grid->setHorizontalSpacing(16);
-                    grid->setVerticalSpacing(0);
-                    for (int r = 0; r < grid->rowCount(); ++r)
-                        grid->setRowMinimumHeight(r, cardRowHeight);
+                    grid->setVerticalSpacing(8);
                 }
                 else
                 {
-                    child->setSpacing(12);
+                    child->setSpacing(8);
                 }
             }
             else if (QWidget *w = item->widget())
             {
-                w->setMinimumHeight(qMax(w->minimumHeight(), cardRowHeight));
+                relaxWidget(w);
             }
         }
 
@@ -94,15 +101,28 @@ namespace
     void styleGrid(QGridLayout *grid)
     {
         grid->setHorizontalSpacing(16);
-        grid->setVerticalSpacing(0);
-        for (int r = 0; r < grid->rowCount(); ++r)
-            grid->setRowMinimumHeight(r, cardRowHeight);
+        grid->setVerticalSpacing(8);
     }
 
     void wrapGroupBox(QGroupBox *gb)
     {
         const QString title = gb->title();
         const QString originalName = gb->objectName();
+        if ((originalName == QStringLiteral("groupWebUIUser")) || (originalName == QStringLiteral("groupWebUIAPIKey")))
+        {
+            // Plain sub-sections inside the Authentication card: keep their
+            // native layouts and let them size to their contents.
+            gb->setMaximumHeight(QWIDGETSIZE_MAX);
+            if (QLayout *subLayout = gb->layout())
+            {
+                subLayout->setContentsMargins(16, 8, 16, 8);
+                subLayout->setSpacing(8);
+            }
+            relaxWidget(gb);
+            for (QWidget *child : gb->findChildren<QWidget *>())
+                relaxWidget(child);
+            return;
+        }
         QLayout *parentLayout = (gb->parentWidget() != nullptr) ? gb->parentWidget()->layout() : nullptr;
         int parentIndex = -1;
         if (parentLayout != nullptr)
@@ -187,6 +207,10 @@ namespace
         // Keep the Designer object name intact (m_ui pointers and any name
         // based lookup stay valid); style the card via a dynamic property.
         gb->setProperty("settingsCard", true);
+        gb->setMaximumHeight(QWIDGETSIZE_MAX);
+        for (QWidget *child : gb->findChildren<QWidget *>())
+            relaxWidget(child);
+        relaxWidget(gb);
         if (QVBoxLayout *vbox = qobject_cast<QVBoxLayout *>(gb->layout()))
         {
             vbox->setContentsMargins(16, 10, 16, 10);
@@ -354,6 +378,10 @@ void OptionsLayoutHelper::apply(QWidget *dialog)
             {
                 area->widget()->layout()->setContentsMargins(28, 0, 28, 28);
                 area->widget()->layout()->setSpacing(22);
+                area->widget()->setMaximumHeight(QWIDGETSIZE_MAX);
+                QSizePolicy policy = area->widget()->sizePolicy();
+                policy.setVerticalPolicy(QSizePolicy::Preferred);
+                area->widget()->setSizePolicy(policy);
             }
         }
 

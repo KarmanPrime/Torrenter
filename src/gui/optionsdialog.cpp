@@ -54,6 +54,7 @@
 #include <QPalette>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSpinBox>
 #include <QStyleFactory>
 #include <QSystemTrayIcon>
 #include <QTimer>
@@ -191,6 +192,13 @@ OptionsDialog::OptionsDialog(IGUIApplication *app, QWidget *parent)
     // Phase A: rebuild Designer group boxes as real cards/rows (titles outside,
     // hairline-separated 52 px rows) and lift the restart hint into a footer.
     OptionsLayoutHelper::apply(this);
+
+    // WebUI port needs room for its spin arrows after the card redesign.
+    if (auto *webUIPort = findChild<QSpinBox *>(QStringLiteral("spinWebUIPort")))
+    {
+        webUIPort->setMinimumWidth(96);
+        webUIPort->setMinimumHeight(30);
+    }
 
 #ifdef Q_OS_UNIX
     setWindowTitle(tr("Preferences"));

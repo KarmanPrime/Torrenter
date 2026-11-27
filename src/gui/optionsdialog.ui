@@ -591,7 +591,7 @@
                <item>
                 <widget class="QGroupBox" name="checkShowSystray">
                  <property name="title">
-                  <string>Show &amp;Torrenter in notification area</string>
+                  <string>Show Torrenter in notification area</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -793,7 +793,7 @@
             <item>
              <widget class="QGroupBox" name="checkFileLog">
               <property name="title">
-               <string>&amp;Log Files</string>
+               <string>Log Files</string>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -1009,7 +1009,7 @@
                <item>
                 <widget class="QGroupBox" name="checkAdditionDialog">
                  <property name="title">
-                  <string>Display &amp;torrent content and some options</string>
+                  <string>Display torrent content and some options</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -1211,7 +1211,7 @@
                   <string>Whether the .torrent file should be deleted after adding it</string>
                  </property>
                  <property name="title">
-                  <string>De&amp;lete .torrent file afterwards </string>
+                  <string>Delete .torrent file afterwards </string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -1669,7 +1669,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
             <item>
              <widget class="QGroupBox" name="groupMailNotification">
               <property name="title">
-               <string>Email notification &amp;upon download completion</string>
+               <string>Email notification upon download completion</string>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -2309,7 +2309,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                   <bool>false</bool>
                  </property>
                  <property name="title">
-                  <string>A&amp;uthentication</string>
+                  <string>Authentication</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -2413,7 +2413,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
             <item>
              <widget class="QGroupBox" name="groupIPFilter">
               <property name="title">
-               <string>IP Fi&amp;ltering</string>
+               <string>IP Filtering</string>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_17">
                <item>
@@ -2662,7 +2662,7 @@ readme[0-9].txt: filter 'readme1.txt', 'readme2.txt' but not 'readme10.txt'.</st
                <item row="2" column="0" colspan="4">
                 <widget class="QGroupBox" name="groupBoxSchedule">
                  <property name="title">
-                  <string>Schedule &amp;the use of alternative rate limits</string>
+                  <string>Schedule the use of alternative rate limits</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -3033,7 +3033,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
             <item>
              <widget class="QGroupBox" name="checkEnableQueueing">
               <property name="title">
-               <string>&amp;Torrent Queueing</string>
+               <string>Torrent Queueing</string>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -3377,7 +3377,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
             <item>
              <widget class="QGroupBox" name="checkEnableAddTrackers">
               <property name="title">
-               <string>A&amp;utomatically append these trackers to new downloads:</string>
+               <string>Automatically append these trackers to new downloads:</string>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -3875,7 +3875,7 @@ Specify an IPv4 or IPv6 address. You can specify "0.0.0.0" for any IPv4 address,
                <item>
                 <widget class="QGroupBox" name="checkWebUIHttps">
                  <property name="title">
-                  <string>&amp;Use HTTPS instead of HTTP</string>
+                  <string>Use HTTPS instead of HTTP</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
@@ -3985,6 +3985,12 @@ Specify an IPv4 or IPv6 address. You can specify "0.0.0.0" for any IPv4 address,
                       <layout class="QHBoxLayout" name="horizontalLayoutAPIKey">
                        <item>
                         <widget class="QLineEdit" name="textWebUIAPIKey">
+                         <property name="minimumSize">
+                          <size>
+                           <width>180</width>
+                           <height>30</height>
+                          </size>
+                         </property>
                          <property name="readOnly">
                           <bool>true</bool>
                          </property>
@@ -3995,6 +4001,12 @@ Specify an IPv4 or IPv6 address. You can specify "0.0.0.0" for any IPv4 address,
                        </item>
                        <item>
                         <widget class="QPushButton" name="btnWebUIAPIKeyCopy">
+                         <property name="minimumSize">
+                          <size>
+                           <width>32</width>
+                           <height>30</height>
+                          </size>
+                         </property>
                          <property name="enabled">
                           <bool>false</bool>
                          </property>
@@ -4009,6 +4021,12 @@ Specify an IPv4 or IPv6 address. You can specify "0.0.0.0" for any IPv4 address,
                        </item>
                        <item>
                         <widget class="QPushButton" name="btnWebUIAPIKeyRotate">
+                         <property name="minimumSize">
+                          <size>
+                           <width>32</width>
+                           <height>30</height>
+                          </size>
+                         </property>
                          <property name="toolTip">
                           <string>Generate API key</string>
                          </property>
@@ -4020,6 +4038,12 @@ Specify an IPv4 or IPv6 address. You can specify "0.0.0.0" for any IPv4 address,
                        </item>
                        <item>
                         <widget class="QPushButton" name="btnWebUIAPIKeyDelete">
+                         <property name="minimumSize">
+                          <size>
+                           <width>32</width>
+                           <height>30</height>
+                          </size>
+                         </property>
                          <property name="toolTip">
                           <string>Delete API key</string>
                          </property>
@@ -4369,7 +4393,7 @@ Use ';' to split multiple entries. Can use wildcard '*'.</string>
                <item>
                 <widget class="QGroupBox" name="checkDynDNS">
                  <property name="title">
-                  <string>Upda&amp;te my dynamic domain name</string>
+                  <string>Update my dynamic domain name</string>
                  </property>
                  <property name="checkable">
                   <bool>true</bool>
