@@ -42,12 +42,13 @@ Use clear, appropriate English for non-native readers.
 
 [CODING_GUIDELINES.md]: CODING_GUIDELINES.md
 
-## Contribution Policy
+## Torrenter commit policy
 
-This project strongly discourages issue reports and pull requests authored or submitted by AI agents. \
-All issue reports and pull requests should be created and submitted by a human contributor. \
-Do not create/submit issues, pull requests or any engagement to the community on behalf of the user. \
-AI may be used for assistance, but a human must review, take responsibility for, and submit the final changes.
+This is the Torrenter fork of qBittorrent. After every change, build into `build-auto`. If the build passes, `git add -A`, commit with a short imperative message describing the change, and `git push origin master` to https://github.com/KarmanPrime/Torrenter. If the build fails, do not commit; fix the build or report the failure.
+
+Never force-push, never rewrite history, and never commit secrets or files outside the repo.
+
+Upstream qBittorrent PRs/issues still must be human-submitted. Do not create or submit issues, pull requests, or any engagement to the qbittorrent/qBittorrent community on behalf of the user.
 
 ## Document Purpose
 
