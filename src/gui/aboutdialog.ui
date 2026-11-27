@@ -333,7 +333,7 @@
          <item>
           <widget class="QLabel" name="label">
            <property name="text">
-            <string>qBittorrent is using the following libraries:</string>
+            <string>Torrenter is using the following libraries:</string>
            </property>
           </widget>
          </item>

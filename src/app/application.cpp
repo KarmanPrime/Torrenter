@@ -319,6 +319,7 @@ Application::Application(int &argc, char **argv)
     qRegisterMetaType<Log::Peer>("Log::Peer");
 
     setApplicationName(u"Torrenter"_s);
+    setOrganizationName(u"Torrenter"_s);
     setOrganizationDomain(u"karmanprime.com"_s);
 #if !defined(DISABLE_GUI)
     setDesktopFileName(u"com.karmanprime.Torrenter"_s);
@@ -1410,11 +1411,11 @@ bool Application::loadTranslation(const QString &locale)
     const bool success = m_translator.load(u":/lang/qbittorrent_" + locale);
     if (success)
     {
-        LogMsg(tr("Load qBittorrent translation successful. Locale: %1.").arg(locale));
+        LogMsg(tr("Load Torrenter translation successful. Locale: %1.").arg(locale));
     }
     else
     {
-        LogMsg(tr("Load qBittorrent translation failed. Temporarily falling back to English. Locale not found: %1.")
+        LogMsg(tr("Load Torrenter translation failed. Temporarily falling back to English. Locale not found: %1.")
             .arg(locale), Log::WARNING);
     }
 

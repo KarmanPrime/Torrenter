@@ -47,6 +47,10 @@
 #endif
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QSettings>
+#include <QStandardPaths>
 #include <QString>
 #include <QThread>
 
@@ -156,6 +160,38 @@ namespace
     }
 #endif  // DISABLE_GUI
 
+#ifndef DISABLE_GUI
+    // One-time, opt-in import of a real qBittorrent configuration. Copy only.
+    void offerQbittorrentConfigImport()
+    {
+        const QString torrenterDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        const QString torrenterIni = QDir(torrenterDir).filePath(u"Torrenter.ini"_s);
+        if (QFile::exists(torrenterIni))
+            return;
+        const QString qbtDir = QDir(torrenterDir).absoluteFilePath(u"../qBittorrent"_s);
+        const QString qbtIni = QDir(qbtDir).filePath(u"qBittorrent.ini"_s);
+        if (!QFile::exists(qbtIni))
+            return;
+
+        QSettings importFlag(torrenterIni, QSettings::IniFormat);
+        if (importFlag.value(u"Import/QbittorrentDeclined"_s, false).toBool())
+            return;
+        importFlag.sync();
+
+        QMessageBox msgBox(QMessageBox::Question
+            , QCoreApplication::translate("Main", "Import settings")
+            , QCoreApplication::translate("Main", "A qBittorrent configuration was found. Do you want to copy its settings into Torrenter once?")
+            , (QMessageBox::Yes | QMessageBox::No));
+        msgBox.setDefaultButton(QMessageBox::No);
+        if (msgBox.exec() == QMessageBox::Yes)
+        {
+            QDir().mkpath(torrenterDir);
+            QFile::copy(qbtIni, torrenterIni);
+        }
+        QSettings(torrenterIni, QSettings::IniFormat).setValue(u"Import/QbittorrentDeclined"_s, true);
+    }
+#endif // DISABLE_GUI
+
 #ifdef Q_OS_UNIX
     void adjustFileDescriptorLimit()
     {
@@ -198,6 +234,7 @@ int main(int argc, char *argv[])
         app = std::make_unique<Application>(argc, argv);
 
 #ifndef DISABLE_GUI
+        offerQbittorrentConfigImport();
         QApplication::setWindowIcon(QIcon(u":/icons/qbittorrent.svg"_s));
 #endif
 
@@ -235,7 +272,7 @@ int main(int argc, char *argv[])
                                                         .arg(params.unknownParameter));
         }
 
-        // Check if qBittorrent is already running
+        // Check if Torrenter is already running
         if (app->hasAnotherInstance())
         {
 #if defined(DISABLE_GUI) && !defined(Q_OS_WIN)

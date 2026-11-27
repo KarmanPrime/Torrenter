@@ -448,6 +448,8 @@
         <file>private/views/transferlist.html</file>
         <file>public/css/login.css</file>
         <file>public/css/noscript.css</file>
+        <file>public/images/torrenter-tray.svg</file>
+        <file>public/images/torrenter32.png</file>
         <file>public/images/qbittorrent-tray.svg</file>
         <file>public/images/qbittorrent32.png</file>
         <file>public/index.html</file>

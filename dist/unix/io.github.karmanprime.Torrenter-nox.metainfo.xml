@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2014 sledgehammer999 <sledgehammer999@qbittorrent.org>; modifications Copyright 2026 KarmanPrime -->
+<component type="console-application">
+  <id>io.github.karmanprime.Torrenter-nox</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later and OpenSSL</project_license>
+  <name>Torrenter-nox</name>
+  <summary>An open-source Bittorrent client (nox version)</summary>
+  <description>
+    <p>
+      The Torrenter project aims to provide an open-source software alternative to µTorrent.
+      Additionally, Torrenter runs and provides the same features on all major platforms (FreeBSD, Linux, macOS, OS/2, Windows).
+      Torrenter is based on the Qt toolkit and libtorrent-rasterbar library.
+    </p>
+    <ul>
+      <li>Polished µTorrent-like User Interface</li>
+      <li>Well-integrated and extensible Search Engine</li>
+      <li>RSS feed support with advanced download filters (incl. regex)</li>
+      <li>Many Bittorrent extensions supported</li>
+      <li>Remote control through Web user interface, written with AJAX</li>
+      <li>Sequential downloading (Download in order)</li>
+      <li>Advanced control over torrents, trackers and peers</li>
+      <li>Bandwidth scheduler</li>
+      <li>Torrent creation tool</li>
+      <li>IP Filtering (eMule &amp; PeerGuardian format compatible)</li>
+      <li>IPv6 compliant</li>
+      <li>UPnP / NAT-PMP port forwarding support</li>
+      <li>Available on all platforms: Windows, Linux, macOS, FreeBSD, OS/2</li>
+      <li>Available in ~70 languages</li>
+    </ul>
+  </description>
+  <provides>
+    <binary>torrenter-nox</binary>
+  </provides>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </supports>
+  <developer id="io.github.karmanprime">
+    <name>The Torrenter Project</name>
+  </developer>
+  <url type="homepage">https://github.com/karmanprime/Torrenter</url>
+  <url type="bugtracker">https://github.com/karmanprime/Torrenter/issues</url>
+  <url type="faq">https://github.com/karmanprime/Torrenter</url>
+  <url type="help">https://github.com/karmanprime/Torrenter</url>
+  <url type="donation">https://github.com/karmanprime/Torrenterdonate</url>
+  <url type="translate">https://github.com/karmanprime/Torrenter</url>
+  <url type="vcs-browser">https://github.com/karmanprime/Torrenter</url>
+  <url type="contribute">https://github.com/karmanprime/Torrenter/blob/master/CONTRIBUTING.md</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="5.4.0~alpha1" date="2026-09-28"/>
+  </releases>
+</component>

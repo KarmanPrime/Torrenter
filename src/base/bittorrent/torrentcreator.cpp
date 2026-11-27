@@ -260,7 +260,7 @@ void TorrentCreator::run()
 
         // Set qBittorrent as creator and add user comment to
         // torrent_info structure
-        newTorrent.set_creator("qBittorrent " QBT_VERSION);
+        newTorrent.set_creator("Torrenter " QBT_VERSION);
         newTorrent.set_comment(m_params.comment.toUtf8().constData());
         // Is private ?
         newTorrent.set_priv(m_params.isPrivate);

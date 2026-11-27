@@ -1,15 +1,15 @@
 [Desktop Entry]
 Categories=Network;FileTransfer;P2P;Qt;
-Exec=qbittorrent %U
+Exec=torrenter %U
 GenericName=BitTorrent client
 Comment=Download and share files over BitTorrent
-Icon=qbittorrent
+Icon=io.github.karmanprime.Torrenter
 MimeType=application/x-bittorrent;x-scheme-handler/magnet;
 Name=Torrenter
 Terminal=false
 Type=Application
 StartupNotify=false
-StartupWMClass=qbittorrent
+StartupWMClass=torrenter
 Keywords=bittorrent;torrent;magnet;download;p2p;
 SingleMainWindow=true
 

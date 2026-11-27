@@ -1,10 +1,10 @@
 {
   "name": "webui",
-  "description": "qBittorrent WebUI",
+  "description": "Torrenter WebUI",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/qbittorrent/qBittorrent.git"
+    "url": "https://github.com/KarmanPrime/Torrenter.git"
   },
   "scripts": {
     "format": "js-beautify -r *.mjs private/*.html private/scripts/*.js private/views/*.html public/*.html public/scripts/*.js test/*/*.js && prettier --write **.css",

@@ -203,9 +203,9 @@ jobs:
         if: matrix.qbt_gui == 'GUI=OFF'
         run: |
           mkdir -p qbittorrent/usr/share/applications
-          cp .github/workflows/helper/appimage/org.qbittorrent.qBittorrent.desktop qbittorrent/usr/share/applications/org.qbittorrent.qBittorrent.desktop
+          cp .github/workflows/helper/appimage/io.github.karmanprime.Torrenter.desktop qbittorrent/usr/share/applications/io.github.karmanprime.Torrenter.desktop
           mkdir -p qbittorrent/usr/share/icons/hicolor/scalable/apps
-          cp dist/unix/menuicons/scalable/apps/qbittorrent.svg qbittorrent/usr/share/icons/hicolor/scalable/apps/qbittorrent.svg
+          cp dist/unix/menuicons/scalable/apps/io.github.karmanprime.Torrenter.svg qbittorrent/usr/share/icons/hicolor/scalable/apps/io.github.karmanprime.Torrenter.svg
 
       - name: Package AppImage
         run: |

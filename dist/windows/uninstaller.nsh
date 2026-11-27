@@ -2,8 +2,8 @@ Section "un.$(remove_files)" ;"un.Remove files"
     SectionIn RO
 
     ; Remove files and uninstaller
-    Delete "$INSTDIR\qbittorrent.exe"
-    Delete "$INSTDIR\qbittorrent.pdb"
+    Delete "$INSTDIR\torrenter.exe"
+    Delete "$INSTDIR\torrenter.pdb"
     Delete "$INSTDIR\qt.conf"
     Delete "$INSTDIR\uninst.exe"
 
@@ -15,25 +15,25 @@ SectionEnd
 Section "un.$(remove_shortcuts)" ;"un.Remove shortcuts"
     SectionIn RO
     ; Remove shortcuts, if any
-    RMDir /r "$SMPROGRAMS\qBittorrent"
-    Delete "$DESKTOP\qBittorrent.lnk"
+    RMDir /r "$SMPROGRAMS\Torrenter"
+    Delete "$DESKTOP\Torrenter.lnk"
 SectionEnd
 
 Section "un.$(remove_registry)" ;"un.Remove registry keys"
     SectionIn RO
     ; Remove registry keys
-    DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\qBittorrent"
-    DeleteRegKey HKLM "Software\qBittorrent"
-    DeleteRegValue HKLM "Software\RegisteredApplications" "qBittorrent"
+    DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Torrenter"
+    DeleteRegKey HKLM "Software\KarmanPrime\Torrenter"
+    DeleteRegValue HKLM "Software\RegisteredApplications" "Torrenter"
     ; Remove ProgIDs
-    DeleteRegKey HKLM "Software\Classes\qBittorrent.File.Torrent"
-    DeleteRegKey HKLM "Software\Classes\qBittorrent.Url.Magnet"
+    DeleteRegKey HKLM "Software\Classes\Torrenter.File.Torrent"
+    DeleteRegKey HKLM "Software\Classes\Torrenter.Url.Magnet"
     System::Call 'shell32::SHChangeNotify(i ${SHCNE_ASSOCCHANGED}, i ${SHCNF_IDLIST}, p 0, p 0)'
 SectionEnd
 
 Section "un.$(remove_firewall)" ;
     DetailPrint $(remove_firewallinfo)
-    nsisFirewallW::RemoveAuthorizedApplication "$INSTDIR\qbittorrent.exe"
+    nsisFirewallW::RemoveAuthorizedApplication "$INSTDIR\torrenter.exe"
 SectionEnd
 
 Section /o "un.$(remove_conf)" ;"un.Remove configuration files"
@@ -42,7 +42,7 @@ SectionEnd
 
 Function un.remove_conf_user
     System::Call 'shell32::SHGetKnownFolderPath(g "${FOLDERID_RoamingAppData}", i 0, p 0, *w . r1) i . r0'
-    RMDir /r "$1\qBittorrent"
+    RMDir /r "$1\Torrenter"
     System::Call 'ole32::CoTaskMemFree(p r1)'
 FunctionEnd
 
@@ -52,7 +52,7 @@ SectionEnd
 
 Function un.remove_cache_user
     System::Call 'shell32::SHGetKnownFolderPath(g "${FOLDERID_LocalAppData}", i 0, p 0, *w . r1) i . r0'
-    RMDir /r "$1\qBittorrent"
+    RMDir /r "$1\Torrenter"
     System::Call 'ole32::CoTaskMemFree(p r1)'
 FunctionEnd
 
@@ -68,7 +68,7 @@ FunctionEnd
 
 Function un.check_instance
     check:
-    FindProcDLL::FindProc "qbittorrent.exe"
+    FindProcDLL::FindProc "torrenter.exe"
     StrCmp $R0 "1" 0 notfound
     MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION $(uninst_warning) /SD IDCANCEL IDRETRY check IDCANCEL canceled
 

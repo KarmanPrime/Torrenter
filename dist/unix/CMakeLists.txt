@@ -33,12 +33,12 @@ foreach(manPageLanguage ${manPageLanguages})
 endforeach()
 
 if (GUI)
-    install(FILES org.qbittorrent.qBittorrent.desktop
+    install(FILES io.github.karmanprime.Torrenter.desktop
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
         COMPONENT data
     )
 
-    install(FILES org.qbittorrent.qBittorrent.metainfo.xml
+    install(FILES io.github.karmanprime.Torrenter.metainfo.xml
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
         COMPONENT data
     )
@@ -56,7 +56,7 @@ if (GUI)
         COMPONENT data
     )
 else()
-    install(FILES org.qbittorrent.qBittorrent-nox.metainfo.xml
+    install(FILES io.github.karmanprime.Torrenter-nox.metainfo.xml
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
         COMPONENT data
     )

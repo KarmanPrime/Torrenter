@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Torrenter
+Exec=torrenter-nox %U
+Icon=io.github.karmanprime.Torrenter
+Type=Application
+Categories=Network

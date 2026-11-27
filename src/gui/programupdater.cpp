@@ -71,23 +71,13 @@ void ProgramUpdater::checkForUpdates()
 {
     // Don't change this User-Agent. In case our updater goes haywire,
     // the filehost can identify it and contact us.
-    const auto USER_AGENT = QStringLiteral("qBittorrent/" QBT_VERSION_2 " ProgramUpdater (www.qbittorrent.org)");
-    const auto QBT_MAIN_URL = u"https://www.qbittorrent.org/versions.json"_s;
-    const auto QBT_BACKUP_URL = u"https://qbittorrent.github.io/qBittorrent-website/versions.json"_s;
-
-    Net::DownloadManager *netManager = Net::DownloadManager::instance();
-    const bool useProxy = Preferences::instance()->useProxyForGeneralPurposes();
-
-    m_pendingRequestCount = 2;
-    // don't use the custom user agent for the following requests, disguise as a normal browser instead
-    netManager->download(Net::DownloadRequest(QBT_MAIN_URL), useProxy, this, [this](const Net::DownloadResult &result)
-    {
-        fallbackDownloadFinished(result, m_qbtMainVersion);
-    });
-    netManager->download(Net::DownloadRequest(QBT_BACKUP_URL), useProxy, this, [this](const Net::DownloadResult &result)
-    {
-        fallbackDownloadFinished(result, m_qbtBackupVersion);
-    });
+    const auto USER_AGENT = QStringLiteral("Torrenter/" QBT_VERSION_2 " ProgramUpdater (github.com/karmanprime/Torrenter)");
+    // Torrenter has no remote version feed. Upstream qBittorrent's versions.json describes a
+    // different product, so it must not be used to announce updates.
+    Q_UNUSED(USER_AGENT);
+    m_qbtMainVersion = {};
+    m_qbtBackupVersion = {};
+    QMetaObject::invokeMethod(this, &ProgramUpdater::updateCheckFinished, Qt::QueuedConnection);
 }
 
 ProgramUpdater::Version ProgramUpdater::getNewVersion() const
@@ -136,9 +126,9 @@ bool ProgramUpdater::updateProgram() const
     switch (getLatestRemoteSource())
     {
     case RemoteSource::QbtMain:
-        return QDesktopServices::openUrl(u"https://www.qbittorrent.org/download"_s);
+        return QDesktopServices::openUrl(u"https://github.com/KarmanPrime/Torrenter/releases"_s);
     case RemoteSource::QbtBackup:
-        return QDesktopServices::openUrl(u"https://qbittorrent.github.io/qBittorrent-website/download"_s);
+        return QDesktopServices::openUrl(u"https://github.com/KarmanPrime/Torrenter/releases"_s);
     }
     Q_UNREACHABLE();
 }

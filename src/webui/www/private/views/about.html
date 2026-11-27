@@ -1,8 +1,8 @@
 <div id="aboutAboutContent" class="aboutTabContent">
-    <img src="images/mascot.png" style="float: left;" alt="QBT_TR(qBittorrent Mascot)QBT_TR[CONTEXT=AboutDialog]">
+    <img src="images/mascot.png" style="float: left;" alt="QBT_TR(Torrenter Mascot)QBT_TR[CONTEXT=AboutDialog]">
     <div>
-        <img src="images/qbittorrent-tray.svg" style="float: left; height: 1.5em;" alt="QBT_TR(qBittorrent icon)QBT_TR[CONTEXT=AboutDialog]">
-        <h3 id="qbittorrentVersion">qBittorrent</h3>
+        <img src="images/torrenter-tray.svg" style="float: left; height: 1.5em;" alt="QBT_TR(Torrenter icon)QBT_TR[CONTEXT=AboutDialog]">
+        <h3 id="qbittorrentVersion">Torrenter</h3>
     </div>
     <p>QBT_TR(An advanced BitTorrent client programmed in C++, based on Qt toolkit and libtorrent-rasterbar.)QBT_TR[CONTEXT=AboutDialog]</p>
     <p>Copyright © 2006-2026 The qBittorrent project</p>
@@ -820,7 +820,7 @@
 </div>
 
 <div id="aboutSoftwareUsedContent" class="aboutTabContent invisible">
-    <p>QBT_TR(qBittorrent is using the following libraries:)QBT_TR[CONTEXT=AboutDialog]</p>
+    <p>QBT_TR(Torrenter is using the following libraries:)QBT_TR[CONTEXT=AboutDialog]</p>
     <table style="margin: 0 auto;">
         <tbody>
             <tr>
@@ -855,7 +855,7 @@
         const qbtVersion = window.parent.qBittorrent.Cache.qbtVersion.get();
         const buildInfo = window.parent.qBittorrent.Cache.buildInfo.get();
 
-        document.getElementById("qbittorrentVersion").textContent = `qBittorrent ${qbtVersion} QBT_TR(WebUI)QBT_TR[CONTEXT=OptionsDialog]`;
+        document.getElementById("qbittorrentVersion").textContent = `Torrenter ${qbtVersion} QBT_TR(WebUI)QBT_TR[CONTEXT=OptionsDialog]`;
         document.getElementById("qtVersion").textContent = buildInfo.qt;
         document.getElementById("libtorrentVersion").textContent = buildInfo.libtorrent;
         document.getElementById("boostVersion").textContent = buildInfo.boost;

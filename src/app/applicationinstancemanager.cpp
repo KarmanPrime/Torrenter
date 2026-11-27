@@ -33,6 +33,7 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QSharedMemory>
 #endif
@@ -49,7 +50,7 @@ ApplicationInstanceManager::ApplicationInstanceManager(const Path &instancePath,
     connect(m_peer, &LocalPeer::messageReceived, this, &ApplicationInstanceManager::messageReceived, Qt::QueuedConnection);
 
 #ifdef Q_OS_WIN
-    const QString sharedMemoryKey = instancePath.data() + u"/shared-memory";
+    const QString sharedMemoryKey = QCoreApplication::applicationName() + u"/" + instancePath.data() + u"/shared-memory";
     auto sharedMem = new QSharedMemory(sharedMemoryKey, this);
     if (m_isFirstInstance)
     {

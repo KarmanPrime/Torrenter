@@ -78,7 +78,7 @@ void DNSUpdater::checkPublicIP()
     Q_ASSERT(m_state == OK);
 
     DownloadManager::instance()->download(
-            DownloadRequest(u"https://checkip.dyndns.org"_s).userAgent(QStringLiteral("qBittorrent/" QBT_VERSION_2))
+            DownloadRequest(u"https://checkip.dyndns.org"_s).userAgent(QStringLiteral("Torrenter/" QBT_VERSION_2))
             , Preferences::instance()->useProxyForGeneralPurposes(), this, &DNSUpdater::ipRequestFinished);
 
     m_lastIPCheckTime = QDateTime::currentDateTime();
@@ -126,7 +126,7 @@ void DNSUpdater::updateDNSService()
 
     m_lastIPCheckTime = QDateTime::currentDateTime();
     DownloadManager::instance()->download(
-            DownloadRequest(getUpdateUrl()).userAgent(QStringLiteral("qBittorrent/" QBT_VERSION_2))
+            DownloadRequest(getUpdateUrl()).userAgent(QStringLiteral("Torrenter/" QBT_VERSION_2))
             , Preferences::instance()->useProxyForGeneralPurposes(), this, &DNSUpdater::ipUpdateFinished);
 }
 
@@ -211,7 +211,7 @@ void DNSUpdater::processIPUpdateReply(const QString &reply)
 
     if (code == u"badagent")
     {
-        LogMsg(tr("Dynamic DNS error: qBittorrent was blacklisted by the service, please submit a bug report at https://bugs.qbittorrent.org."),
+        LogMsg(tr("Dynamic DNS error: Torrenter was blacklisted by the service, please submit a bug report at https://bugs.qbittorrent.org."),
                            Log::CRITICAL);
         m_state = FATAL;
         return;

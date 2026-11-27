@@ -18,7 +18,7 @@ minimum_perc = 23
 lang_map     = pt: pt_PT, zh: zh_CN
 
 [o:sledgehammer999:p:qbittorrent:r:qbittorrentdesktop_master]
-source_file  = dist/unix/org.qbittorrent.qBittorrent.desktop
+source_file  = dist/unix/io.github.karmanprime.Torrenter.desktop
 source_lang  = en
 type         = DESKTOP
 minimum_perc = 23

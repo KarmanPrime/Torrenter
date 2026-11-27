@@ -10462,3 +10462,8 @@ Total matching lines: 10442 across 505 files.
 [INTERNAL] .\src\webui\www\private\scripts\filesystem.js:34:window.qBittorrent.Filesystem ??= (() => {
 [INTERNAL] .\src\webui\www\private\scripts\filesystem.js:51:        return (window.qBittorrent?.Cache?.buildInfo.get().platform === "windows")
 [INTERNAL] .\src\webui\www\private\scripts\filesystem.js:81:Object.freeze(window.qBittorrent.Filesystem);
+
+## Post-change audit (after rebrand edits)
+
+User-visible qBittorrent text was rebranded in the GUI, installer (all languages), Web UI, Windows/macOS/Linux packaging and the program updater.
+Intentionally kept: GPL headers and upstream copyright credits, "based on qBittorrent" credits, About/WebUI copyright credit to The qBittorrent project, thanks/translators/GPL pages, internal class/namespace/file/resource names, translation catalogs, third-party search-plugin repository URL, and the one-time qBittorrent settings import prompt.

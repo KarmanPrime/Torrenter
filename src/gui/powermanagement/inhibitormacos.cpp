@@ -33,7 +33,7 @@
 
 bool InhibitorMacOS::requestBusy()
 {
-    const CFStringRef assertName = tr("PMMacOS", "qBittorrent is active").toCFString();
+    const CFStringRef assertName = tr("PMMacOS", "Torrenter is active").toCFString();
     [[maybe_unused]] const auto assertNameGuard = qScopeGuard([&assertName] { ::CFRelease(assertName); });
     const IOReturn result = ::IOPMAssertionCreateWithName(kIOPMAssertionTypeNoIdleSleep, kIOPMAssertionLevelOn
         , assertName, &m_assertionID);

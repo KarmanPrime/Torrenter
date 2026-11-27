@@ -5,7 +5,7 @@
 ; Doing so may make antivirus software flag the installer as virus/malware
 ;!define USE_UPX
 
-; qBittorrent version
+; Torrenter version
 ; The string MUST contain ONLY numbers delimited by dots.
 ; It MUST contain a maximum of 4 delimited numbers
 ; Other values will result in undefined behavior
@@ -18,7 +18,7 @@
 
 ; Option that controls the installer's window name
 ; If set, its value will be used like this:
-; "qBittorrent ${QBT_INSTALLER_FILENAME}"
+; "Torrenter ${QBT_INSTALLER_FILENAME}"
 ; If not set, the window name will be auto composed from QBT_VERSION
 ; If you set this define then you MUST set QBT_INSTALLER_FILENAME too. Otherwise it will be ignored.
 ; This define is meant to ease automation from scripts/commandline
@@ -26,7 +26,7 @@
 
 ; Option that controls the installer's window name
 ; If set, its value will be used like this:
-; "qbittorrent_${QBT_INSTALLER_FILENAME}_setup.exe"
+; "torrenter_${QBT_INSTALLER_FILENAME}_setup.exe"
 ; If not set, the installer filename will be auto composed from QBT_VERSION
 ; If you set this define then you MUST set QBT_INSTALLER_WINDOWNAME too. Otherwise it will be ignored.
 ; This define is meant to ease automation from scripts/commandline
@@ -57,8 +57,13 @@
     !define QBT_INSTALLER_FILENAME "${QBT_VERSION}_${QBT_CPU_ARCH}"
 !endif
 
-!define /ifndef QBT_DIST_DIR "qBittorrent"
+!define /ifndef QBT_DIST_DIR "torrenter"
 !define /ifndef QBT_NSIS_PLUGINS_DIR "NSISPlugins"
+
+; Torrenter-specific installer identity. Never reuse qBittorrent's AppId/GUIDs.
+!define TORRENTER_APP_ID "io.github.karmanprime.Torrenter"
+!define TORRENTER_PRODUCT_GUID "{9A570D98-EBCD-400E-AC4C-58B60189EF71}"
+!define TORRENTER_UPGRADE_GUID "{DB4515D8-55B9-4741-A20C-808ABFFCCFD2}"
 
 Unicode true
 ManifestDPIAware true
@@ -89,12 +94,12 @@ SetCompressorDictSize 64
 Name "Torrenter ${QBT_INSTALLER_WINDOWNAME}"
 
 ; The file to write
-OutFile "qbittorrent_${QBT_INSTALLER_FILENAME}_setup.exe"
+OutFile "torrenter_${QBT_INSTALLER_FILENAME}_setup.exe"
 
 ;Installer Version Information
 VIAddVersionKey "ProductName" "Torrenter"
-VIAddVersionKey "CompanyName" "The qBittorrent project"
-VIAddVersionKey "LegalCopyright" "Copyright ©2006-2026 The qBittorrent project"
+VIAddVersionKey "CompanyName" "KarmanPrime"
+VIAddVersionKey "LegalCopyright" "Copyright ©2006-2026 The qBittorrent project; Torrenter modifications 2026 KarmanPrime"
 VIAddVersionKey "FileDescription" "Torrenter - A BitTorrent Client"
 VIAddVersionKey "FileVersion" "${QBT_VERSION}"
 
@@ -104,11 +109,11 @@ ${VersionCompleteXXXX} ${QBT_VERSION} VERSION_4_PART
 VIProductVersion "${VERSION_4_PART}"
 
 ; The default installation directory.
-InstallDir $PROGRAMFILES64\qBittorrent
+InstallDir $PROGRAMFILES64\Torrenter
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM Software\qbittorrent InstallLocation
+InstallDirRegKey HKLM Software\KarmanPrime\Torrenter InstallLocation
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel user
@@ -126,7 +131,7 @@ RequestExecutionLevel user
 ;--------------------------------
 ;Remember the uninstaller/installer language
 !define MUI_LANGDLL_REGISTRY_ROOT "HKLM"
-!define MUI_LANGDLL_REGISTRY_KEY "Software\qbittorrent"
+!define MUI_LANGDLL_REGISTRY_KEY "Software\KarmanPrime\Torrenter"
 !define MUI_LANGDLL_REGISTRY_VALUENAME "Installer Language"
 
 ;--------------------------------

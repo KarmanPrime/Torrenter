@@ -90,7 +90,7 @@ def main() -> int:
     replace_svg(REPO / "src/icons/qbittorrent_mac.svg", icon_svg.read_text(encoding="utf-8"))
     replace_svg(REPO / "src/icons/qbittorrent-tray-dark.svg", dark_tray_svg.read_text(encoding="utf-8"))
     replace_svg(REPO / "src/icons/qbittorrent-tray-light.svg", light_tray_svg.read_text(encoding="utf-8"))
-    replace_svg(REPO / "dist/unix/menuicons/scalable/apps/qbittorrent.svg", icon_svg.read_text(encoding="utf-8"))
+    replace_svg(REPO / "dist/unix/menuicons/scalable/apps/io.github.karmanprime.Torrenter.svg", icon_svg.read_text(encoding="utf-8"))
     replace_svg(REPO / "src/webui/www/public/images/qbittorrent-tray.svg", accent_tray_svg.read_text(encoding="utf-8"))
 
     # Unix menu icons.
@@ -101,7 +101,7 @@ def main() -> int:
         src_tray = GEN / f"torrenter-tray-accent-{size}.png"
         if not src_tray.exists():
             render(accent_tray_svg, src_tray, size)
-        dst_icon = REPO / f"dist/unix/menuicons/{size}x{size}/apps/qbittorrent.png"
+        dst_icon = REPO / f"dist/unix/menuicons/{size}x{size}/apps/io.github.karmanprime.Torrenter.png"
         dst_tray = REPO / f"dist/unix/menuicons/{size}x{size}/status/qbittorrent-tray.png"
         shutil.copyfile(src_icon, dst_icon)
         shutil.copyfile(src_tray, dst_tray)

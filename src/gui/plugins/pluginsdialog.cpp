@@ -141,7 +141,7 @@ void PluginsDialog::onActionInstallTriggered()
 {
     const QStringList pathsList = QFileDialog::getOpenFileNames(
             nullptr, tr("Select plugins"), m_storeLastPath.get(QDir::homePath())
-            , (tr("qBittorrent plugin") + u" (*.lua)"));
+            , (tr("Torrenter plugin") + u" (*.lua)"));
 
     for (const QString &pathStr : pathsList)
         installPlugin(Path(pathStr));
