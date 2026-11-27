@@ -2,7 +2,7 @@
 
 <img src="docs/branding/torrenter-icon.svg" width="96" height="96" alt="Torrenter logo">
 
-A modern, dark-first BitTorrent client built on qBittorrent.
+A modern BitTorrent client.
 
 ## Screenshots
 
